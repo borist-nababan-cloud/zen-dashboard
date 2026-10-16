@@ -13,7 +13,7 @@ services:
     ports:
       - "${PORT:-8080}:80"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
-      interval: 30s
-      timeout: 5s
+      test: ["CMD-SHELL", "curl -fs http://127.0.0.1:80/healthz || wget -q -O - http://127.0.0.1:80/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
       retries: 3
