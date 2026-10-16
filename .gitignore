@@ -30,3 +30,8 @@ bun.lockb
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch & test scripts
+check_*.js
+test_*.js
+inspect_*.js

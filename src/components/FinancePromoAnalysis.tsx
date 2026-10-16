@@ -60,7 +60,7 @@ export const FinancePromoAnalysis: React.FC<FinancePromoAnalysisProps> = ({
               {paymentBreakdown.map((item) => {
                 const percent = Math.min(100, Math.round((item.total / grandTenderTotal) * 100));
                 const isCash = item.method.toUpperCase().includes('CASH');
-                const isGift = item.method.toUpperCase().includes('GIFT') || item.method.toUpperCase().includes('VOUCHER');
+                const isGift = item.method.toUpperCase().includes('GIFT') || item.method.toUpperCase().includes('VOUCHER') || item.method.toUpperCase().includes('GC');
 
                 return (
                   <div key={item.method} className="group">

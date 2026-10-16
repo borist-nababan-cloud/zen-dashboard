@@ -29,6 +29,7 @@ export interface PosTransMaster {
 export interface PosPaymentDetails {
   id_payment: string;
   kode_outlet: string;
+  tanggal?: string;
   namapromo?: string;
   refpromo?: string;
   vpromo: number;
@@ -74,11 +75,10 @@ export interface PosTransDetail {
 }
 
 export interface CategoryMix {
-  bodyMassage: number;      // BM
-  footReflexology: number;  // RF
-  additional: number;       // BA
-  product: number;          // PR / BP
-  gcSales: number;          // BG
+  footAndBody: number; // BJ: Foot & Body
+  additional: number;  // BA: Additional
+  product: number;     // BP: Product
+  gcSales: number;     // BG: GC Sales
   total: number;
 }
 
@@ -92,6 +92,8 @@ export interface OutletCardMetrics {
   outlet: MasterOutlet;
   totalSales: number;
   cashOnHand: number;
+  gcPayment: number;
+  gcPaymentCount: number;
   activeGuests: number;
   completedGuests: number;
   rejectionCount: number;
@@ -122,6 +124,8 @@ export interface RejectionReasonItem {
 export interface GlobalGardenSummary {
   totalSales: number;
   cashOnHand: number;
+  gcPayment: number;
+  gcPaymentCount: number;
   activeCheckIns: number;
   completedTransactions: number;
   totalDiscounts: number;

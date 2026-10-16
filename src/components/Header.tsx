@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, MapPin, Clock, ShieldCheck, Sparkles } from 'lucide-react';
+import { RefreshCw, MapPin, Clock, ShieldCheck, Sparkles, Calendar, Moon, Sun, RotateCcw } from 'lucide-react';
 import { MasterOutlet } from '../types/dashboard';
 
 interface HeaderProps {
@@ -10,6 +10,10 @@ interface HeaderProps {
   onRefresh: () => void;
   loading: boolean;
   lastUpdated: Date | null;
+  selectedDate: string;
+  onSelectDate: (date: string) => void;
+  isOvernightWindow: boolean;
+  onResetDate: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +24,10 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   loading,
   lastUpdated,
+  selectedDate,
+  onSelectDate,
+  isOvernightWindow,
+  onResetDate,
 }) => {
   const [currentTime, setCurrentTime] = useState<string>('');
 
@@ -68,6 +76,17 @@ export const Header: React.FC<HeaderProps> = ({
                   <Sparkles className="w-3 h-3 mr-1 text-zen-matcha" />
                   Live Sync
                 </span>
+                {isOvernightWindow ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200">
+                    <Moon className="w-3 h-3 mr-1 text-purple-600" />
+                    Night Shift Review
+                  </span>
+                ) : (
+                  <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Sun className="w-3 h-3 mr-1 text-emerald-600" />
+                    Day Shift
+                  </span>
+                )}
               </div>
               <p className="text-xs text-zen-muted font-medium">
                 Executive Multi-Outlet Real-time Panorama
@@ -75,9 +94,21 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Controls: Branch Filter, Live Clock, Refresh */}
-          <div className="flex flex-wrap items-center justify-end gap-2.5 w-full md:w-auto">
+          {/* Controls: Date Picker, Branch Filter, Live Clock, Refresh */}
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto">
             
+            {/* Operational Business Date Picker */}
+            <div className="relative flex items-center">
+              <Calendar className="absolute left-2.5 w-3.5 h-3.5 text-zen-moss pointer-events-none" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => onSelectDate(e.target.value)}
+                title="Operational Business Date (Defaults to yesterday's closing shift between 00:00 - 08:00)"
+                className="pl-8 pr-2.5 py-2 text-xs font-semibold rounded-xl bg-white border border-zen-sand/50 text-zen-charcoal shadow-sm hover:border-zen-matcha focus:outline-none focus:ring-2 focus:ring-zen-matcha/40 transition-all cursor-pointer"
+              />
+            </div>
+
             {/* Outlet Selector */}
             <div className="relative flex items-center">
               <MapPin className="absolute left-3 w-4 h-4 text-zen-moss pointer-events-none" />

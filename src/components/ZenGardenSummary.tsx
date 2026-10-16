@@ -12,7 +12,8 @@ import {
   Award,
   Layers,
   Footprints,
-  HeartHandshake
+  HeartHandshake,
+  Gift
 } from 'lucide-react';
 import { GlobalGardenSummary } from '../types/dashboard';
 
@@ -50,25 +51,25 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
         </div>
       </div>
 
-      {/* 4 Primary Hero Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-5">
+      {/* 5 Primary Hero Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-4 mb-5">
         
         {/* Card 1: Total Sales */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
+        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-zen-muted uppercase tracking-wider mb-1">
+              <p className="text-[11px] font-semibold text-zen-muted uppercase tracking-wider mb-1">
                 Gross Revenue
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-zen-charcoal tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-zen-charcoal tracking-tight">
                 {formatIDR(summary.totalSales)}
               </h3>
             </div>
-            <div className="p-2.5 bg-zen-matcha/10 text-zen-matcha rounded-xl border border-zen-matcha/20 group-hover:scale-110 transition-transform">
-              <DollarSign className="w-5 h-5 text-zen-moss" />
+            <div className="p-2 bg-zen-matcha/10 text-zen-matcha rounded-xl border border-zen-matcha/20 group-hover:scale-110 transition-transform">
+              <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 text-zen-moss" />
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
             <span className="text-zen-muted flex items-center">
               <Tag className="w-3.5 h-3.5 mr-1 text-zen-muted" />
               Discounts / Promos
@@ -80,21 +81,21 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
         </div>
 
         {/* Card 2: Cash on Hand */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
+        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-zen-muted uppercase tracking-wider mb-1">
+              <p className="text-[11px] font-semibold text-zen-muted uppercase tracking-wider mb-1">
                 Cash on Hand
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-zen-charcoal tracking-tight">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-zen-charcoal tracking-tight">
                 {formatIDR(summary.cashOnHand)}
               </h3>
             </div>
-            <div className="p-2.5 bg-amber-500/10 text-amber-600 rounded-xl border border-amber-500/20 group-hover:scale-110 transition-transform">
-              <Wallet className="w-5 h-5" />
+            <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl border border-amber-500/20 group-hover:scale-110 transition-transform">
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
             <span className="text-zen-muted">Physical Drawer Share</span>
             <span className="font-semibold text-zen-bark">
               {summary.totalSales > 0
@@ -104,23 +105,46 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Active Check-ins */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
+        {/* Card 3: GC Payment (Gift Certificate Redemptions) */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border border-purple-200/70 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-zen-muted uppercase tracking-wider mb-1">
-                Active In-Service
+              <p className="text-[11px] font-semibold text-purple-700 uppercase tracking-wider mb-1">
+                GC Payment
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-zen-charcoal tracking-tight flex items-baseline">
-                {summary.activeCheckIns}
-                <span className="text-xs font-normal text-zen-muted ml-2">guests</span>
+              <h3 className="text-xl sm:text-2xl font-extrabold text-purple-900 tracking-tight">
+                {formatIDR(summary.gcPayment || 0)}
               </h3>
             </div>
-            <div className="p-2.5 bg-blue-500/10 text-blue-600 rounded-xl border border-blue-500/20 group-hover:scale-110 transition-transform">
-              <Users className="w-5 h-5" />
+            <div className="p-2 bg-purple-100 text-purple-700 rounded-xl border border-purple-200 group-hover:scale-110 transition-transform">
+              <Gift className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+            <span className="text-zen-muted">Vouchers Redeemed</span>
+            <span className="font-semibold text-purple-800 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/50">
+              {summary.gcPaymentCount || 0} vouchers
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Active Check-ins */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[11px] font-semibold text-zen-muted uppercase tracking-wider mb-1">
+                Active In-Service
+              </p>
+              <h3 className="text-xl sm:text-2xl font-extrabold text-zen-charcoal tracking-tight flex items-baseline">
+                {summary.activeCheckIns}
+                <span className="text-xs font-normal text-zen-muted ml-1.5">guests</span>
+              </h3>
+            </div>
+            <div className="p-2 bg-blue-500/10 text-blue-600 rounded-xl border border-blue-500/20 group-hover:scale-110 transition-transform">
+              <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+          </div>
+          <div className="mt-3 pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
             <span className="text-zen-muted flex items-center">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
               Live in Rooms
@@ -129,26 +153,26 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
           </div>
         </div>
 
-        {/* Card 4: Completed Transactions */}
-        <div className="relative overflow-hidden bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
+        {/* Card 5: Completed Transactions */}
+        <div className="relative overflow-hidden bg-white rounded-2xl p-4 sm:p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xs font-semibold text-zen-muted uppercase tracking-wider mb-1">
-                Completed Transactions
+              <p className="text-[11px] font-semibold text-zen-muted uppercase tracking-wider mb-1">
+                Completed
               </p>
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-zen-charcoal tracking-tight flex items-baseline">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-zen-charcoal tracking-tight flex items-baseline">
                 {summary.completedTransactions}
-                <span className="text-xs font-normal text-zen-muted ml-2">paid orders</span>
+                <span className="text-xs font-normal text-zen-muted ml-1.5">orders</span>
               </h3>
             </div>
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-600 rounded-xl border border-emerald-500/20 group-hover:scale-110 transition-transform">
-              <CheckCircle2 className="w-5 h-5" />
+            <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl border border-emerald-500/20 group-hover:scale-110 transition-transform">
+              <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
           </div>
-          <div className="mt-4 pt-3 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+          <div className="mt-3 pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
             <span className="text-zen-muted flex items-center">
               <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-500" />
-              Rejections / Missed
+              Rejections
             </span>
             <span className="font-semibold text-amber-700">
               {summary.totalRejections} walk-ins
@@ -175,33 +199,21 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
           </span>
         </div>
 
-        {/* 5 Operational Categories Grid */}
+        {/* 5 Operational Categories Grid (Foot & Body BJ, Additional BA, Product BP, GC Sales BG & GC Payment GCP) */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
-          {/* 1. Body Massage (BM) */}
+          {/* 1. Foot & Body (BJ) */}
           <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Body Massage</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zen-matcha/15 text-zen-moss">BM</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Foot & Body</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zen-matcha/15 text-zen-moss">BJ</span>
             </div>
             <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
-              {categoryMix.bodyMassage}
+              {categoryMix.footAndBody}
             </p>
-            <span className="text-[10px] text-zen-muted">massages</span>
+            <span className="text-[10px] text-zen-muted">treatments</span>
           </div>
 
-          {/* 2. Foot Reflexology (RF) */}
-          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Foot Reflexology</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zen-sand/30 text-zen-bark">RF</span>
-            </div>
-            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
-              {categoryMix.footReflexology}
-            </p>
-            <span className="text-[10px] text-zen-muted">reflexology</span>
-          </div>
-
-          {/* 3. Additional (BA) */}
+          {/* 2. Additional (BA) */}
           <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Additional</span>
@@ -213,11 +225,11 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
             <span className="text-[10px] text-zen-muted">add-ons</span>
           </div>
 
-          {/* 4. Product (PR) */}
+          {/* 3. Product (BP) */}
           <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Product</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-700">PR</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-700">BP</span>
             </div>
             <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
               {categoryMix.product}
@@ -225,8 +237,8 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
             <span className="text-[10px] text-zen-muted">retail units</span>
           </div>
 
-          {/* 5. GC Sales (BG) */}
-          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors col-span-2 sm:col-span-1">
+          {/* 4. GC Sales (BG) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">GC Sales</span>
               <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-700">BG</span>
@@ -235,6 +247,20 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
               {categoryMix.gcSales}
             </p>
             <span className="text-[10px] text-zen-muted">vouchers sold</span>
+          </div>
+
+          {/* 5. GC Payment (Redeemed) */}
+          <div className="p-3.5 rounded-xl bg-purple-50/60 border border-purple-200/80 hover:border-purple-400 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800">GC Payment</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-200/80 text-purple-900">GCP</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-purple-900">
+              {summary.gcPaymentCount || 0}
+            </p>
+            <span className="text-[10px] font-medium text-purple-700 truncate block" title={formatIDR(summary.gcPayment || 0)}>
+              {formatIDR(summary.gcPayment || 0)}
+            </span>
           </div>
         </div>
 

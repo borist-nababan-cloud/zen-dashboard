@@ -35,8 +35,7 @@ const DEFAULT_TARGET_SALES: Record<string, number> = {
 };
 
 const createEmptyCategoryMix = (): CategoryMix => ({
-  bodyMassage: 0,
-  footReflexology: 0,
+  footAndBody: 0,
   additional: 0,
   product: 0,
   gcSales: 0,
@@ -51,6 +50,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
     summary: {
       totalSales: 0,
       cashOnHand: 0,
+      gcPayment: 0,
+      gcPaymentCount: 0,
       activeCheckIns: 0,
       completedTransactions: 0,
       totalDiscounts: 0,
@@ -67,27 +68,48 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
   });
 
   const [countdown, setCountdown] = useState<number>(30);
+  const [userDateOverride, setUserDateOverride] = useState<string | null>(null);
   const isFetchingRef = useRef(false);
 
-  // Timezone-aware date calculations (Local Browser Timezone -> UTC Bounds)
-  const getTodayBounds = () => {
-    const now = new Date();
-    
-    // Local YYYY-MM-DD
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const localDateStr = `${year}-${month}-${day}`;
-    const yearShort = String(year).slice(-2);
-    const yymmdd = `${yearShort}${month}${day}`;
+  // Helper to format Date into YYYY-MM-DD
+  const formatDateISO = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-    // Start of Day in Local Timezone
-    const startLocal = new Date(year, now.getMonth(), now.getDate(), 0, 0, 0, 0);
-    // End of Day in Local Timezone
-    const endLocal = new Date(year, now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  // Automatic Operational Date:
+  // Outlets close at 23:30. Between 00:00:00 and 07:59:59 (overnight shift review),
+  // default to yesterday's closing business day. From 08:00 onwards, roll over to today.
+  const getAutoOperationalDate = () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const isOvernight = currentHour < 8;
+    if (isOvernight) {
+      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      return { dateStr: formatDateISO(yesterday), isOvernight: true };
+    }
+    return { dateStr: formatDateISO(now), isOvernight: false };
+  };
+
+  const autoDateInfo = getAutoOperationalDate();
+  const activeDateStr = userDateOverride || autoDateInfo.dateStr;
+  const isOvernightWindow = autoDateInfo.isOvernight && (!userDateOverride || userDateOverride === autoDateInfo.dateStr);
+
+  // Timezone-aware date calculations for the active operational date
+  const getOperationalBounds = (dateStr: string) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const yearShort = String(y).slice(-2);
+    const monthStr = String(m).padStart(2, '0');
+    const dayStr = String(d).padStart(2, '0');
+    const yymmdd = `${yearShort}${monthStr}${dayStr}`;
+
+    const startLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
+    const endLocal = new Date(y, m - 1, d, 23, 59, 59, 999);
 
     return {
-      localDateStr,
+      localDateStr: dateStr,
       yymmdd,
       startUTCISO: startLocal.toISOString(),
       endUTCISO: endLocal.toISOString(),
@@ -100,15 +122,16 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
     try {
       setData((prev) => ({ ...prev, loading: prev.lastUpdated === null }));
-      const { localDateStr, yymmdd, startUTCISO, endUTCISO } = getTodayBounds();
+      const { localDateStr, yymmdd, startUTCISO, endUTCISO } = getOperationalBounds(activeDateStr);
 
-      // Parallel Network Execution: Exactly 5 queries (O(1) roundtrip)
+      // Parallel Network Execution: Outlets, Master, Details, Payments, Rejections, GC Payments
       const [
         outletsRes,
         masterTransRes,
         detailsRes,
         paymentDetailsRes,
-        rejectsRes
+        rejectsRes,
+        gcPaymentsRes
       ] = await Promise.all([
         // 1. Master Outlets (Active Only)
         supabase
@@ -117,11 +140,12 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .eq('active', true)
           .order('kode_outlet', { ascending: true }),
 
-        // 2. POS Trans Master for Today (filtered by local date)
+        // 2. POS Trans Master for Operational Date (subtotal >= 0)
         supabase
           .from('ot_pos_trans_master')
           .select('trans_id, kode_outlet, tanggal, start_time, end_time, status_trans, nama_customer, room_id, subtotal, kodekaryawan, byrequest, typejasa, rcpt, id_payment, user_uid')
-          .eq('tanggal', localDateStr),
+          .eq('tanggal', localDateStr)
+          .gte('subtotal', 0),
 
         // 3. POS Trans Detail for Today (products, treatments, additional, GC)
         supabase
@@ -129,18 +153,26 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('trans_id, kode_outlet, tanggal, trans_type_id, produk_jasa_id, produk_jasa_nama, qty, price, subtotal')
           .eq('tanggal', localDateStr),
 
-        // 4. POS Trans Payment Details (Filtered by business payment code YYMMDD, e.g. %.PAY.261016%)
+        // 4. POS Trans Payment Details (Exact indexed tanggal with legacy payment code fallback)
         supabase
           .from('ot_pos_trans_payment_details')
-          .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
-          .like('id_payment', `%.PAY.${yymmdd}%`),
+          .select('id_payment, kode_outlet, tanggal, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
+          .or(`tanggal.eq.${localDateStr},id_payment.like.%.PAY.${yymmdd}%`),
 
         // 5. POS Trans Rejection / Walk-in cancellations (Today's rejects)
         supabase
           .from('ot_pos_trans_reject')
           .select('local_autonum, kode_outlet, jenis_jasa, reason, reject_date, lasteditdate')
           .gte('reject_date', startUTCISO)
-          .lte('reject_date', endUTCISO)
+          .lte('reject_date', endUTCISO),
+
+        // 6. POS Trans Payment Details with Gift Certificate tender (vgift > 0)
+        supabase
+          .from('ot_pos_trans_payment_details')
+          .select('id_payment, kode_outlet, tanggal, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
+          .gt('vgift', 0)
+          .or(`tanggal.eq.${localDateStr},id_payment.like.%.PAY.${yymmdd}%`)
+          .order('created_at', { ascending: false })
       ]);
 
       if (outletsRes.error) throw new Error(`Outlets Error: ${outletsRes.error.message}`);
@@ -148,17 +180,27 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       if (detailsRes.error) throw new Error(`Trans Detail Error: ${detailsRes.error.message}`);
       if (paymentDetailsRes.error) throw new Error(`Payment Details Error: ${paymentDetailsRes.error.message}`);
       if (rejectsRes.error) throw new Error(`Rejections Error: ${rejectsRes.error.message}`);
+      if (gcPaymentsRes.error) throw new Error(`GC Payments Error: ${gcPaymentsRes.error.message}`);
 
       const rawOutlets: MasterOutlet[] = (outletsRes.data as MasterOutlet[]) || [];
       const rawMasters: PosTransMaster[] = (masterTransRes.data as PosTransMaster[]) || [];
       const rawDetails: PosTransDetail[] = (detailsRes.data as PosTransDetail[]) || [];
-      let rawPayments: PosPaymentDetails[] = (paymentDetailsRes.data as PosPaymentDetails[]) || [];
       const rawRejects: PosTransReject[] = (rejectsRes.data as PosTransReject[]) || [];
 
+      // Combine payment records with deduplication by id_payment
+      const paymentMap = new Map<string, PosPaymentDetails>();
+      for (const p of ((paymentDetailsRes.data as PosPaymentDetails[]) || [])) {
+        paymentMap.set(p.id_payment, p);
+      }
+      for (const p of ((gcPaymentsRes.data as PosPaymentDetails[]) || [])) {
+        if (!paymentMap.has(p.id_payment)) {
+          paymentMap.set(p.id_payment, p);
+        }
+      }
+
       // Combine with any additional linked payments from today's master transactions
-      const existingPayIds = new Set(rawPayments.map((p) => p.id_payment));
       const masterPayIds = Array.from(
-        new Set(rawMasters.map((m) => m.id_payment).filter((id): id is string => Boolean(id) && !existingPayIds.has(id)))
+        new Set(rawMasters.map((m) => m.id_payment).filter((id): id is string => Boolean(id) && !paymentMap.has(id)))
       );
 
       if (masterPayIds.length > 0) {
@@ -167,9 +209,13 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
           .in('id_payment', masterPayIds);
         if (extraPayments && extraPayments.length > 0) {
-          rawPayments = [...rawPayments, ...(extraPayments as PosPaymentDetails[])];
+          for (const p of (extraPayments as PosPaymentDetails[])) {
+            paymentMap.set(p.id_payment, p);
+          }
         }
       }
+
+      const rawPayments = Array.from(paymentMap.values());
 
       // =========================================================================
       // SINGLE-PASS LINEAR AGGREGATION: O(O + T + D + P + R)
@@ -182,6 +228,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           outlet,
           totalSales: 0,
           cashOnHand: 0,
+          gcPayment: 0,
+          gcPaymentCount: 0,
           activeGuests: 0,
           completedGuests: 0,
           rejectionCount: 0,
@@ -197,6 +245,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       let globalCompletedTransactions = 0;
       let globalTotalSales = 0;
       let globalCashOnHand = 0;
+      let globalGCPayment = 0;
+      let globalGCPaymentCount = 0;
       let globalTotalDiscounts = 0;
       let globalTotalPromos = 0;
       let globalTotalRejections = 0;
@@ -206,34 +256,38 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
       // 2. Process Trans Master in O(T)
       for (const m of rawMasters) {
+        const subtotal = Number(m.subtotal) || 0;
+        // Only exclude negative subtotal amounts (voided/refunded)
+        if (subtotal < 0) continue;
+
         if (m.typejasa) {
           masterTypeMap.set(m.trans_id, m.typejasa.trim().toUpperCase());
         }
 
         const isTargetOutlet = selectedOutletCode === 'ALL' || m.kode_outlet === selectedOutletCode;
-        const statusUpper = (m.status_trans || '').toUpperCase();
-        const isStarted = statusUpper === 'STARTED' || statusUpper === 'CHECKIN' || statusUpper === 'IN_PROGRESS';
+        const statusUpper = (m.status_trans || '').trim().toUpperCase();
+        // Active In-Service: Only active in-service guests with status STARTED and subtotal > 0 (strictly excluding subtotal = 0)
+        const isStarted = statusUpper === 'STARTED' && subtotal > 0;
         const isCompleted = statusUpper === 'PAID' || statusUpper === 'CHECKOUT' || statusUpper === 'FINISHED';
 
         if (isTargetOutlet) {
           if (isStarted) globalActiveCheckIns++;
-          if (isCompleted) globalCompletedTransactions++;
+          if (isCompleted && subtotal > 0) globalCompletedTransactions++;
         }
 
         const outletMetrics = outletMap.get(m.kode_outlet);
         if (outletMetrics) {
           if (isStarted) outletMetrics.activeGuests++;
-          if (isCompleted) outletMetrics.completedGuests++;
+          if (isCompleted && subtotal > 0) outletMetrics.completedGuests++;
         }
       }
 
       // 3. Process Trans Details in O(D)
-      // Map categories:
-      // "BM" : "Body Massage"
-      // "RF" : "Foot Reflexology"
-      // "BA" : "Additional"
-      // "PR" / "BP" : "Product"
-      // "BG" : "GC Sales"
+      // Standard categories per user specification:
+      // "BA" : Additional
+      // "BG" : GC Sales
+      // "BJ" : Foot & Body (also maps legacy BM, RF)
+      // "BP" : Product (also maps legacy PR)
       const globalCategoryMix = createEmptyCategoryMix();
       const globalItemCounts = new Map<string, number>();
       const outletItemMaps = new Map<string, Map<string, number>>();
@@ -243,34 +297,18 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         const qty = Number(d.qty) || 1;
         const rawNama = d.produk_jasa_nama && d.produk_jasa_nama.trim() !== '' ? d.produk_jasa_nama.trim() : null;
 
-        let catCode: 'BM' | 'RF' | 'BA' | 'PR' | 'BG' | null = null;
+        let catCode: 'BJ' | 'BA' | 'BP' | 'BG' = 'BJ';
         const rawType = (d.trans_type_id || '').trim().toUpperCase();
 
         if (rawType === 'BA') {
           catCode = 'BA'; // Additional
-        } else if (rawType === 'BP' || rawType === 'PR') {
-          catCode = 'PR'; // Product
         } else if (rawType === 'BG') {
           catCode = 'BG'; // GC Sales
-        } else if (rawType === 'BM') {
-          catCode = 'BM'; // Body Massage
-        } else if (rawType === 'RF') {
-          catCode = 'RF'; // Foot Reflexology
-        } else if (rawType === 'BJ') {
-          // Jasa / Service: resolve via master transaction typejasa or heuristics
-          const mType = masterTypeMap.get(d.trans_id);
-          if (mType === 'BM' || mType === 'RF') {
-            catCode = mType;
-          } else if (rawNama) {
-            const upperNama = rawNama.toUpperCase();
-            if (upperNama.includes('FOOT') || upperNama.includes('REFLEX') || upperNama.includes('RF')) {
-              catCode = 'RF';
-            } else {
-              catCode = 'BM';
-            }
-          } else {
-            catCode = 'BM';
-          }
+        } else if (rawType === 'BP' || rawType === 'PR') {
+          catCode = 'BP'; // Product
+        } else {
+          // 'BJ', 'BM', 'RF', or any service
+          catCode = 'BJ'; // Foot & Body
         }
 
         // Global metrics accumulation
@@ -278,20 +316,18 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           if (rawNama) {
             globalItemCounts.set(rawNama, (globalItemCounts.get(rawNama) || 0) + qty);
           }
-          if (catCode === 'BM') { globalCategoryMix.bodyMassage += qty; globalCategoryMix.total += qty; }
-          else if (catCode === 'RF') { globalCategoryMix.footReflexology += qty; globalCategoryMix.total += qty; }
+          if (catCode === 'BJ') { globalCategoryMix.footAndBody += qty; globalCategoryMix.total += qty; }
           else if (catCode === 'BA') { globalCategoryMix.additional += qty; globalCategoryMix.total += qty; }
-          else if (catCode === 'PR') { globalCategoryMix.product += qty; globalCategoryMix.total += qty; }
+          else if (catCode === 'BP') { globalCategoryMix.product += qty; globalCategoryMix.total += qty; }
           else if (catCode === 'BG') { globalCategoryMix.gcSales += qty; globalCategoryMix.total += qty; }
         }
 
         // Per-outlet metrics accumulation
         const outletMetrics = outletMap.get(d.kode_outlet);
         if (outletMetrics) {
-          if (catCode === 'BM') { outletMetrics.categoryMix.bodyMassage += qty; outletMetrics.categoryMix.total += qty; }
-          else if (catCode === 'RF') { outletMetrics.categoryMix.footReflexology += qty; outletMetrics.categoryMix.total += qty; }
+          if (catCode === 'BJ') { outletMetrics.categoryMix.footAndBody += qty; outletMetrics.categoryMix.total += qty; }
           else if (catCode === 'BA') { outletMetrics.categoryMix.additional += qty; outletMetrics.categoryMix.total += qty; }
-          else if (catCode === 'PR') { outletMetrics.categoryMix.product += qty; outletMetrics.categoryMix.total += qty; }
+          else if (catCode === 'BP') { outletMetrics.categoryMix.product += qty; outletMetrics.categoryMix.total += qty; }
           else if (catCode === 'BG') { outletMetrics.categoryMix.gcSales += qty; outletMetrics.categoryMix.total += qty; }
 
           if (rawNama) {
@@ -368,10 +404,13 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
             paymentMethodMap.set(label, entry);
           }
 
-          // D. Gift voucher
+          // D. Gift voucher (GC Payment)
           const vGift = Number(p.vgift) || 0;
           if (vGift > 0) {
-            const label = 'GIFT CERTIFICATE / VOUCHER';
+            globalGCPayment += vGift;
+            globalGCPaymentCount += 1;
+
+            const label = 'GC Payment';
             const entry = paymentMethodMap.get(label) || { total: 0, count: 0 };
             entry.total += vGift;
             entry.count += 1;
@@ -393,6 +432,11 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         if (outletMetrics) {
           outletMetrics.totalSales += amountTotal;
           outletMetrics.cashOnHand += amountCash;
+          const vGift = Number(p.vgift) || 0;
+          if (vGift > 0) {
+            outletMetrics.gcPayment += vGift;
+            outletMetrics.gcPaymentCount += 1;
+          }
         }
       }
 
@@ -456,6 +500,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const summary: GlobalGardenSummary = {
         totalSales: globalTotalSales,
         cashOnHand: globalCashOnHand,
+        gcPayment: globalGCPayment,
+        gcPaymentCount: globalGCPaymentCount,
         activeCheckIns: globalActiveCheckIns,
         completedTransactions: globalCompletedTransactions,
         totalDiscounts: globalTotalDiscounts,
@@ -487,7 +533,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
     } finally {
       isFetchingRef.current = false;
     }
-  }, [selectedOutletCode]);
+  }, [selectedOutletCode, activeDateStr]);
 
   // Initial Fetch & Active Window Timer
   useEffect(() => {
@@ -516,5 +562,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
     ...data,
     countdown,
     refresh: fetchDashboardMetrics,
+    selectedDate: activeDateStr,
+    setSelectedDate: setUserDateOverride,
+    isOvernightWindow,
+    resetToAutoDate: () => setUserDateOverride(null),
   };
 }

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  zen-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-https://ihdlwogvjfgawgsalgng.supabase.co}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-sb_publishable_KobV2o95Ymfem77b4zVBJg_E_onldRD}
+    container_name: zen-dashboard
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

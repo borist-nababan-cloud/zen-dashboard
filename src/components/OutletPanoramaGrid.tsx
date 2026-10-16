@@ -1,6 +1,6 @@
 import React from 'react';
 import { OutletCardMetrics } from '../types/dashboard';
-import { Store, UserCheck, AlertCircle, Sparkles, MapPin, TrendingUp } from 'lucide-react';
+import { Store, UserCheck, AlertCircle, Sparkles, MapPin, TrendingUp, Gift } from 'lucide-react';
 
 interface OutletPanoramaGridProps {
   outlets: OutletCardMetrics[];
@@ -47,7 +47,19 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
       {/* Grid of Branch Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredList.map((item) => {
-          const { outlet, totalSales, targetSales = 10000000, progressPercent, activeGuests, completedGuests, rejectionCount, categoryMix, topItems } = item;
+          const {
+            outlet,
+            totalSales,
+            gcPayment = 0,
+            gcPaymentCount = 0,
+            targetSales = 10000000,
+            progressPercent,
+            activeGuests,
+            completedGuests,
+            rejectionCount,
+            categoryMix,
+            topItems
+          } = item;
 
           return (
             <div
@@ -83,35 +95,34 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
                 </span>
               </div>
 
-              {/* Metric A: Revenue & Target Progress Bar */}
-              <div className="my-3 p-3 bg-zen-paper/60 rounded-xl border border-zen-sand/30">
-                <div className="flex items-baseline justify-between mb-1.5">
-                  <div>
-                    <span className="text-[10px] uppercase font-bold text-zen-muted tracking-wider">
-                      Today's Revenue
-                    </span>
-                    <p className="text-base sm:text-lg font-extrabold text-zen-charcoal">
-                      {formatIDR(totalSales)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-zen-muted">Daily Target</span>
-                    <p className="text-xs font-semibold text-zen-bark">
-                      {progressPercent}%
-                    </p>
-                  </div>
+              {/* Metric A: Revenue & GC Payment Overview */}
+              <div className="my-3 grid grid-cols-2 gap-2">
+                <div className="p-3 bg-zen-paper/60 rounded-xl border border-zen-sand/30">
+                  <span className="text-[10px] uppercase font-bold text-zen-muted tracking-wider block mb-0.5">
+                    Today's Revenue
+                  </span>
+                  <p className="text-sm sm:text-base font-extrabold text-zen-charcoal truncate" title={formatIDR(totalSales)}>
+                    {formatIDR(totalSales)}
+                  </p>
                 </div>
 
-                {/* Progress Track */}
-                <div className="w-full bg-zen-stone rounded-full h-2 overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-zen-sand to-zen-matcha h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(progressPercent, 4))}%` }}
-                  ></div>
+                <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-200/70">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] uppercase font-bold text-purple-700 tracking-wider flex items-center gap-1">
+                      <Gift className="w-3 h-3 text-purple-600" />
+                      <span>GC Payment</span>
+                    </span>
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full bg-purple-200/70 text-purple-800">
+                      {gcPaymentCount}
+                    </span>
+                  </div>
+                  <p className="text-sm sm:text-base font-extrabold text-purple-900 truncate" title={formatIDR(gcPayment)}>
+                    {formatIDR(gcPayment)}
+                  </p>
                 </div>
               </div>
 
-              {/* Metric B: Category Breakdown (BM, RF, BA, PR, BG) from ot_pos_trans_detail */}
+              {/* Metric B: Category Breakdown (BJ, BA, BP, BG) from ot_pos_trans_detail */}
               <div className="mb-3">
                 <div className="flex items-center justify-between text-[11px] text-zen-muted mb-1.5 font-medium">
                   <span>Treatment & Product Mix</span>
@@ -119,29 +130,24 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
                 </div>
 
                 {categoryMix.total > 0 ? (
-                  <div className="grid grid-cols-5 gap-1 text-center">
-                    {/* BM */}
-                    <div className="p-1 rounded bg-zen-cream/70 border border-zen-sand/30">
-                      <span className="block text-[9px] font-bold text-zen-muted">BM</span>
-                      <span className="text-xs font-extrabold text-zen-charcoal">{categoryMix.bodyMassage}</span>
-                    </div>
-                    {/* RF */}
-                    <div className="p-1 rounded bg-zen-cream/70 border border-zen-sand/30">
-                      <span className="block text-[9px] font-bold text-zen-muted">RF</span>
-                      <span className="text-xs font-extrabold text-zen-charcoal">{categoryMix.footReflexology}</span>
+                  <div className="grid grid-cols-4 gap-1.5 text-center">
+                    {/* BJ */}
+                    <div className="p-1 rounded bg-zen-cream/70 border border-zen-sand/30" title="Foot & Body">
+                      <span className="block text-[9px] font-bold text-zen-muted">BJ</span>
+                      <span className="text-xs font-extrabold text-zen-charcoal">{categoryMix.footAndBody}</span>
                     </div>
                     {/* BA */}
-                    <div className="p-1 rounded bg-blue-50/80 border border-blue-100">
+                    <div className="p-1 rounded bg-blue-50/80 border border-blue-100" title="Additional">
                       <span className="block text-[9px] font-bold text-blue-600">BA</span>
                       <span className="text-xs font-extrabold text-blue-900">{categoryMix.additional}</span>
                     </div>
-                    {/* PR */}
-                    <div className="p-1 rounded bg-amber-50/80 border border-amber-100">
-                      <span className="block text-[9px] font-bold text-amber-600">PR</span>
+                    {/* BP */}
+                    <div className="p-1 rounded bg-amber-50/80 border border-amber-100" title="Product">
+                      <span className="block text-[9px] font-bold text-amber-600">BP</span>
                       <span className="text-xs font-extrabold text-amber-900">{categoryMix.product}</span>
                     </div>
                     {/* BG */}
-                    <div className="p-1 rounded bg-purple-50/80 border border-purple-100">
+                    <div className="p-1 rounded bg-purple-50/80 border border-purple-100" title="GC Sales">
                       <span className="block text-[9px] font-bold text-purple-600">BG</span>
                       <span className="text-xs font-extrabold text-purple-900">{categoryMix.gcSales}</span>
                     </div>
