@@ -33,13 +33,13 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
         <div>
           <h2 className="text-lg font-bold font-serif text-zen-charcoal flex items-center gap-2">
             <Store className="w-5 h-5 text-zen-matcha" />
-            <span>Branch Panorama</span>
+            <span>Zen Branch</span>
             <span className="text-xs font-sans font-medium text-zen-muted bg-white px-2 py-0.5 rounded-full border border-zen-sand/40">
               {filteredList.length} Outlets
             </span>
           </h2>
           <p className="text-xs text-zen-muted">
-            Individual branch target progress, service composition, and floor occupancy
+            Individual branch target progress, treatment & product mix, and floor occupancy
           </p>
         </div>
       </div>
@@ -47,9 +47,7 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
       {/* Grid of Branch Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filteredList.map((item) => {
-          const { outlet, totalSales, targetSales = 10000000, progressPercent, activeGuests, completedGuests, rejectionCount, serviceMix } = item;
-          const serviceEntries = Object.entries(serviceMix).sort((a, b) => b[1] - a[1]);
-          const totalServices = serviceEntries.reduce((sum, [, count]) => sum + count, 0);
+          const { outlet, totalSales, targetSales = 10000000, progressPercent, activeGuests, completedGuests, rejectionCount, categoryMix, topItems } = item;
 
           return (
             <div
@@ -86,7 +84,7 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
               </div>
 
               {/* Metric A: Revenue & Target Progress Bar */}
-              <div className="my-3.5 p-3 bg-zen-paper/60 rounded-xl border border-zen-sand/30">
+              <div className="my-3 p-3 bg-zen-paper/60 rounded-xl border border-zen-sand/30">
                 <div className="flex items-baseline justify-between mb-1.5">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-zen-muted tracking-wider">
@@ -113,34 +111,61 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
                 </div>
               </div>
 
-              {/* Metric B: Service Mix (Category Distribution) */}
+              {/* Metric B: Category Breakdown (BM, RF, BA, PR, BG) from ot_pos_trans_detail */}
               <div className="mb-3">
                 <div className="flex items-center justify-between text-[11px] text-zen-muted mb-1.5 font-medium">
-                  <span>Service Mix</span>
-                  <span>{totalServices} treatments</span>
+                  <span>Treatment & Product Mix</span>
+                  <span>{categoryMix.total} items</span>
                 </div>
 
-                {serviceEntries.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {serviceEntries.slice(0, 3).map(([cat, count]) => (
-                      <span
-                        key={cat}
-                        className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-zen-cream text-zen-charcoal border border-zen-sand/40"
-                      >
-                        <span className="truncate max-w-[100px]">{cat}</span>
-                        <span className="ml-1 px-1 rounded bg-white text-[9px] font-bold text-zen-moss">
-                          {count}
-                        </span>
-                      </span>
-                    ))}
-                    {serviceEntries.length > 3 && (
-                      <span className="text-[10px] text-zen-muted font-medium self-center">
-                        +{serviceEntries.length - 3} more
-                      </span>
-                    )}
+                {categoryMix.total > 0 ? (
+                  <div className="grid grid-cols-5 gap-1 text-center">
+                    {/* BM */}
+                    <div className="p-1 rounded bg-zen-cream/70 border border-zen-sand/30">
+                      <span className="block text-[9px] font-bold text-zen-muted">BM</span>
+                      <span className="text-xs font-extrabold text-zen-charcoal">{categoryMix.bodyMassage}</span>
+                    </div>
+                    {/* RF */}
+                    <div className="p-1 rounded bg-zen-cream/70 border border-zen-sand/30">
+                      <span className="block text-[9px] font-bold text-zen-muted">RF</span>
+                      <span className="text-xs font-extrabold text-zen-charcoal">{categoryMix.footReflexology}</span>
+                    </div>
+                    {/* BA */}
+                    <div className="p-1 rounded bg-blue-50/80 border border-blue-100">
+                      <span className="block text-[9px] font-bold text-blue-600">BA</span>
+                      <span className="text-xs font-extrabold text-blue-900">{categoryMix.additional}</span>
+                    </div>
+                    {/* PR */}
+                    <div className="p-1 rounded bg-amber-50/80 border border-amber-100">
+                      <span className="block text-[9px] font-bold text-amber-600">PR</span>
+                      <span className="text-xs font-extrabold text-amber-900">{categoryMix.product}</span>
+                    </div>
+                    {/* BG */}
+                    <div className="p-1 rounded bg-purple-50/80 border border-purple-100">
+                      <span className="block text-[9px] font-bold text-purple-600">BG</span>
+                      <span className="text-xs font-extrabold text-purple-900">{categoryMix.gcSales}</span>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-[11px] text-zen-muted italic">No treatments recorded yet today</p>
+                  <p className="text-[11px] text-zen-muted italic py-1">No services or retail sales yet today</p>
+                )}
+
+                {/* Top Items preview for outlet */}
+                {topItems && topItems.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-zen-stone/40">
+                    <div className="flex flex-wrap gap-1">
+                      {topItems.slice(0, 2).map((ti) => (
+                        <span
+                          key={ti.name}
+                          className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-zen-paper border border-zen-sand/40 text-zen-charcoal truncate max-w-[200px]"
+                          title={ti.name}
+                        >
+                          <span className="truncate">{ti.name}</span>
+                          <span className="ml-1 font-mono font-bold text-zen-moss">x{ti.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -171,3 +196,4 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
     </section>
   );
 };
+

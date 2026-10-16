@@ -5,6 +5,9 @@ import {
   PosTransMaster,
   PosPaymentDetails,
   PosTransReject,
+  PosTransDetail,
+  CategoryMix,
+  ItemRankItem,
   DashboardDataState,
   OutletCardMetrics,
   PaymentMethodItem,
@@ -31,6 +34,15 @@ const DEFAULT_TARGET_SALES: Record<string, number> = {
   '218': 15000000, // Hilton
 };
 
+const createEmptyCategoryMix = (): CategoryMix => ({
+  bodyMassage: 0,
+  footReflexology: 0,
+  additional: 0,
+  product: 0,
+  gcSales: 0,
+  total: 0,
+});
+
 export function useDashboardData(selectedOutletCode: string = 'ALL') {
   const [data, setData] = useState<DashboardDataState>({
     loading: true,
@@ -44,6 +56,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       totalDiscounts: 0,
       totalPromos: 0,
       totalRejections: 0,
+      categoryMix: createEmptyCategoryMix(),
+      topItems: [],
     },
     outlets: [],
     paymentBreakdown: [],
@@ -88,10 +102,11 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       setData((prev) => ({ ...prev, loading: prev.lastUpdated === null }));
       const { localDateStr, yymmdd, startUTCISO, endUTCISO } = getTodayBounds();
 
-      // Parallel Network Execution: Exactly 4 queries (O(1) roundtrip)
+      // Parallel Network Execution: Exactly 5 queries (O(1) roundtrip)
       const [
         outletsRes,
         masterTransRes,
+        detailsRes,
         paymentDetailsRes,
         rejectsRes
       ] = await Promise.all([
@@ -108,13 +123,19 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('trans_id, kode_outlet, tanggal, start_time, end_time, status_trans, nama_customer, room_id, subtotal, kodekaryawan, byrequest, typejasa, rcpt, id_payment, user_uid')
           .eq('tanggal', localDateStr),
 
-        // 3. POS Trans Payment Details (Filtered by business payment code YYMMDD, e.g. %.PAY.261016%)
+        // 3. POS Trans Detail for Today (products, treatments, additional, GC)
+        supabase
+          .from('ot_pos_trans_detail')
+          .select('trans_id, kode_outlet, tanggal, trans_type_id, produk_jasa_id, produk_jasa_nama, qty, price, subtotal')
+          .eq('tanggal', localDateStr),
+
+        // 4. POS Trans Payment Details (Filtered by business payment code YYMMDD, e.g. %.PAY.261016%)
         supabase
           .from('ot_pos_trans_payment_details')
           .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
           .like('id_payment', `%.PAY.${yymmdd}%`),
 
-        // 4. POS Trans Rejection / Walk-in cancellations (Today's rejects)
+        // 5. POS Trans Rejection / Walk-in cancellations (Today's rejects)
         supabase
           .from('ot_pos_trans_reject')
           .select('local_autonum, kode_outlet, jenis_jasa, reason, reject_date, lasteditdate')
@@ -124,11 +145,13 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
       if (outletsRes.error) throw new Error(`Outlets Error: ${outletsRes.error.message}`);
       if (masterTransRes.error) throw new Error(`Trans Master Error: ${masterTransRes.error.message}`);
+      if (detailsRes.error) throw new Error(`Trans Detail Error: ${detailsRes.error.message}`);
       if (paymentDetailsRes.error) throw new Error(`Payment Details Error: ${paymentDetailsRes.error.message}`);
       if (rejectsRes.error) throw new Error(`Rejections Error: ${rejectsRes.error.message}`);
 
       const rawOutlets: MasterOutlet[] = (outletsRes.data as MasterOutlet[]) || [];
       const rawMasters: PosTransMaster[] = (masterTransRes.data as PosTransMaster[]) || [];
+      const rawDetails: PosTransDetail[] = (detailsRes.data as PosTransDetail[]) || [];
       let rawPayments: PosPaymentDetails[] = (paymentDetailsRes.data as PosPaymentDetails[]) || [];
       const rawRejects: PosTransReject[] = (rejectsRes.data as PosTransReject[]) || [];
 
@@ -149,7 +172,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       }
 
       // =========================================================================
-      // SINGLE-PASS LINEAR AGGREGATION: O(O + T + P + R)
+      // SINGLE-PASS LINEAR AGGREGATION: O(O + T + D + P + R)
       // =========================================================================
 
       // 1. Initialize Outlet Metrics Map in O(O)
@@ -162,7 +185,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           activeGuests: 0,
           completedGuests: 0,
           rejectionCount: 0,
-          serviceMix: {},
+          categoryMix: createEmptyCategoryMix(),
+          topItems: [],
           targetSales: DEFAULT_TARGET_SALES[outlet.kode_outlet] || 10000000,
           progressPercent: 0,
         });
@@ -177,8 +201,15 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       let globalTotalPromos = 0;
       let globalTotalRejections = 0;
 
+      // Master typejasa lookup map for detail category resolution
+      const masterTypeMap = new Map<string, string>();
+
       // 2. Process Trans Master in O(T)
       for (const m of rawMasters) {
+        if (m.typejasa) {
+          masterTypeMap.set(m.trans_id, m.typejasa.trim().toUpperCase());
+        }
+
         const isTargetOutlet = selectedOutletCode === 'ALL' || m.kode_outlet === selectedOutletCode;
         const statusUpper = (m.status_trans || '').toUpperCase();
         const isStarted = statusUpper === 'STARTED' || statusUpper === 'CHECKIN' || statusUpper === 'IN_PROGRESS';
@@ -193,15 +224,105 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         if (outletMetrics) {
           if (isStarted) outletMetrics.activeGuests++;
           if (isCompleted) outletMetrics.completedGuests++;
-
-          // Service category mix
-          const rawService = m.typejasa || 'General Spa';
-          const serviceName = rawService.trim() || 'General Spa';
-          outletMetrics.serviceMix[serviceName] = (outletMetrics.serviceMix[serviceName] || 0) + 1;
         }
       }
 
-      // 3. Process Payments & Payment Merging in O(P)
+      // 3. Process Trans Details in O(D)
+      // Map categories:
+      // "BM" : "Body Massage"
+      // "RF" : "Foot Reflexology"
+      // "BA" : "Additional"
+      // "PR" / "BP" : "Product"
+      // "BG" : "GC Sales"
+      const globalCategoryMix = createEmptyCategoryMix();
+      const globalItemCounts = new Map<string, number>();
+      const outletItemMaps = new Map<string, Map<string, number>>();
+
+      for (const d of rawDetails) {
+        const isTargetOutlet = selectedOutletCode === 'ALL' || d.kode_outlet === selectedOutletCode;
+        const qty = Number(d.qty) || 1;
+        const rawNama = d.produk_jasa_nama && d.produk_jasa_nama.trim() !== '' ? d.produk_jasa_nama.trim() : null;
+
+        let catCode: 'BM' | 'RF' | 'BA' | 'PR' | 'BG' | null = null;
+        const rawType = (d.trans_type_id || '').trim().toUpperCase();
+
+        if (rawType === 'BA') {
+          catCode = 'BA'; // Additional
+        } else if (rawType === 'BP' || rawType === 'PR') {
+          catCode = 'PR'; // Product
+        } else if (rawType === 'BG') {
+          catCode = 'BG'; // GC Sales
+        } else if (rawType === 'BM') {
+          catCode = 'BM'; // Body Massage
+        } else if (rawType === 'RF') {
+          catCode = 'RF'; // Foot Reflexology
+        } else if (rawType === 'BJ') {
+          // Jasa / Service: resolve via master transaction typejasa or heuristics
+          const mType = masterTypeMap.get(d.trans_id);
+          if (mType === 'BM' || mType === 'RF') {
+            catCode = mType;
+          } else if (rawNama) {
+            const upperNama = rawNama.toUpperCase();
+            if (upperNama.includes('FOOT') || upperNama.includes('REFLEX') || upperNama.includes('RF')) {
+              catCode = 'RF';
+            } else {
+              catCode = 'BM';
+            }
+          } else {
+            catCode = 'BM';
+          }
+        }
+
+        // Global metrics accumulation
+        if (isTargetOutlet) {
+          if (rawNama) {
+            globalItemCounts.set(rawNama, (globalItemCounts.get(rawNama) || 0) + qty);
+          }
+          if (catCode === 'BM') { globalCategoryMix.bodyMassage += qty; globalCategoryMix.total += qty; }
+          else if (catCode === 'RF') { globalCategoryMix.footReflexology += qty; globalCategoryMix.total += qty; }
+          else if (catCode === 'BA') { globalCategoryMix.additional += qty; globalCategoryMix.total += qty; }
+          else if (catCode === 'PR') { globalCategoryMix.product += qty; globalCategoryMix.total += qty; }
+          else if (catCode === 'BG') { globalCategoryMix.gcSales += qty; globalCategoryMix.total += qty; }
+        }
+
+        // Per-outlet metrics accumulation
+        const outletMetrics = outletMap.get(d.kode_outlet);
+        if (outletMetrics) {
+          if (catCode === 'BM') { outletMetrics.categoryMix.bodyMassage += qty; outletMetrics.categoryMix.total += qty; }
+          else if (catCode === 'RF') { outletMetrics.categoryMix.footReflexology += qty; outletMetrics.categoryMix.total += qty; }
+          else if (catCode === 'BA') { outletMetrics.categoryMix.additional += qty; outletMetrics.categoryMix.total += qty; }
+          else if (catCode === 'PR') { outletMetrics.categoryMix.product += qty; outletMetrics.categoryMix.total += qty; }
+          else if (catCode === 'BG') { outletMetrics.categoryMix.gcSales += qty; outletMetrics.categoryMix.total += qty; }
+
+          if (rawNama) {
+            let oItemMap = outletItemMaps.get(d.kode_outlet);
+            if (!oItemMap) {
+              oItemMap = new Map();
+              outletItemMaps.set(d.kode_outlet, oItemMap);
+            }
+            oItemMap.set(rawNama, (oItemMap.get(rawNama) || 0) + qty);
+          }
+        }
+      }
+
+      // Attach top items to each outlet
+      for (const [outletCode, oMap] of outletItemMaps.entries()) {
+        const oMetrics = outletMap.get(outletCode);
+        if (oMetrics) {
+          oMetrics.topItems = Array.from(oMap.entries())
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 3);
+        }
+      }
+
+      // Top items for global summary
+      const globalTopItems: ItemRankItem[] = Array.from(globalItemCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+
+      // 4. Process Payments & Payment Merging in O(P)
       const paymentMethodMap = new Map<string, { total: number; count: number }>();
       const promoImpactMap = new Map<string, { totalDiscount: number; usageCount: number }>();
 
@@ -275,7 +396,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         }
       }
 
-      // 4. Process Rejections in O(R)
+      // 5. Process Rejections in O(R)
       const rejectionReasonMap = new Map<string, { count: number; services: Set<string> }>();
 
       for (const r of rawRejects) {
@@ -340,6 +461,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         totalDiscounts: globalTotalDiscounts,
         totalPromos: globalTotalPromos,
         totalRejections: globalTotalRejections,
+        categoryMix: globalCategoryMix,
+        topItems: globalTopItems,
       };
 
       setData({

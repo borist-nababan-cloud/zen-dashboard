@@ -60,6 +60,34 @@ export interface PosTransReject {
   lasteditdate?: string;
 }
 
+export interface PosTransDetail {
+  id?: string;
+  trans_id: string;
+  kode_outlet: string;
+  tanggal: string;
+  trans_type_id?: string;
+  produk_jasa_id?: string;
+  produk_jasa_nama?: string;
+  qty: number;
+  price?: number;
+  subtotal?: number;
+}
+
+export interface CategoryMix {
+  bodyMassage: number;      // BM
+  footReflexology: number;  // RF
+  additional: number;       // BA
+  product: number;          // PR / BP
+  gcSales: number;          // BG
+  total: number;
+}
+
+export interface ItemRankItem {
+  name: string;
+  count: number;
+  category?: string;
+}
+
 export interface OutletCardMetrics {
   outlet: MasterOutlet;
   totalSales: number;
@@ -67,7 +95,8 @@ export interface OutletCardMetrics {
   activeGuests: number;
   completedGuests: number;
   rejectionCount: number;
-  serviceMix: Record<string, number>;
+  categoryMix: CategoryMix;
+  topItems: ItemRankItem[];
   targetSales?: number;
   progressPercent: number;
 }
@@ -98,6 +127,8 @@ export interface GlobalGardenSummary {
   totalDiscounts: number;
   totalPromos: number;
   totalRejections: number;
+  categoryMix: CategoryMix;
+  topItems: ItemRankItem[];
 }
 
 export interface DashboardDataState {
@@ -111,3 +142,4 @@ export interface DashboardDataState {
   rejectionReasons: RejectionReasonItem[];
   allActiveOutlets: MasterOutlet[];
 }
+

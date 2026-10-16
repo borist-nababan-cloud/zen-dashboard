@@ -84,7 +84,7 @@ export function App() {
           </div>
         ) : (
           <>
-            {/* 1. The Zen Garden Global KPI Summary */}
+            {/* 1. Zen Family Spa & Reflexology Global KPI Summary */}
             <ZenGardenSummary
               summary={summary}
               selectedOutletName={selectedOutletName}

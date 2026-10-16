@@ -1,5 +1,19 @@
 import React from 'react';
-import { DollarSign, Wallet, Users, CheckCircle2, TrendingUp, AlertTriangle, Tag } from 'lucide-react';
+import {
+  DollarSign,
+  Wallet,
+  Users,
+  CheckCircle2,
+  TrendingUp,
+  AlertTriangle,
+  Tag,
+  Sparkles,
+  ShoppingBag,
+  Award,
+  Layers,
+  Footprints,
+  HeartHandshake
+} from 'lucide-react';
 import { GlobalGardenSummary } from '../types/dashboard';
 
 interface ZenGardenSummaryProps {
@@ -19,13 +33,15 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
     }).format(val);
   };
 
+  const { categoryMix, topItems } = summary;
+
   return (
     <section className="mb-8">
       {/* Section Sub-heading */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-bold font-serif text-zen-charcoal flex items-center gap-2">
-            <span>The Zen Garden</span>
+            <span>Zen Family Spa & Reflexology</span>
             <span className="text-xs font-sans font-normal text-zen-muted bg-white px-2.5 py-0.5 rounded-full border border-zen-sand/40">
               {selectedOutletName}
             </span>
@@ -35,7 +51,7 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
       </div>
 
       {/* 4 Primary Hero Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-5">
         
         {/* Card 1: Total Sales */}
         <div className="relative overflow-hidden bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen hover:shadow-zen-hover transition-all duration-300 group">
@@ -118,7 +134,7 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
           <div className="flex items-start justify-between">
             <div>
               <p className="text-xs font-semibold text-zen-muted uppercase tracking-wider mb-1">
-                Completed Treatments
+                Completed Transactions
               </p>
               <h3 className="text-2xl sm:text-3xl font-extrabold text-zen-charcoal tracking-tight flex items-baseline">
                 {summary.completedTransactions}
@@ -141,6 +157,121 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
         </div>
 
       </div>
+
+      {/* Services & Products Operational Mix (ot_pos_trans_detail) */}
+      <div className="bg-white rounded-2xl p-5 border border-zen-sand/40 shadow-zen">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-zen-stone/60">
+          <div>
+            <h3 className="text-sm font-bold text-zen-charcoal flex items-center gap-2">
+              <Layers className="w-4 h-4 text-zen-matcha" />
+              <span>Services & Products Breakdown</span>
+            </h3>
+            <p className="text-[11px] text-zen-muted">
+              Granular detail counts of services, treatments, retail products, and gift certificates
+            </p>
+          </div>
+          <span className="self-start sm:self-auto text-xs font-semibold text-zen-moss bg-zen-paper px-3 py-1 rounded-full border border-zen-sand/40">
+            Total {categoryMix.total} items rendered
+          </span>
+        </div>
+
+        {/* 5 Operational Categories Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+          {/* 1. Body Massage (BM) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Body Massage</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zen-matcha/15 text-zen-moss">BM</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
+              {categoryMix.bodyMassage}
+            </p>
+            <span className="text-[10px] text-zen-muted">massages</span>
+          </div>
+
+          {/* 2. Foot Reflexology (RF) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Foot Reflexology</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-zen-sand/30 text-zen-bark">RF</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
+              {categoryMix.footReflexology}
+            </p>
+            <span className="text-[10px] text-zen-muted">reflexology</span>
+          </div>
+
+          {/* 3. Additional (BA) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Additional</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-100 text-blue-700">BA</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
+              {categoryMix.additional}
+            </p>
+            <span className="text-[10px] text-zen-muted">add-ons</span>
+          </div>
+
+          {/* 4. Product (PR) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">Product</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-700">PR</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
+              {categoryMix.product}
+            </p>
+            <span className="text-[10px] text-zen-muted">retail units</span>
+          </div>
+
+          {/* 5. GC Sales (BG) */}
+          <div className="p-3.5 rounded-xl bg-zen-paper/70 border border-zen-sand/30 hover:border-zen-matcha/50 transition-colors col-span-2 sm:col-span-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zen-muted">GC Sales</span>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-700">BG</span>
+            </div>
+            <p className="text-xl sm:text-2xl font-extrabold text-zen-charcoal">
+              {categoryMix.gcSales}
+            </p>
+            <span className="text-[10px] text-zen-muted">vouchers sold</span>
+          </div>
+        </div>
+
+        {/* Top Treatments & Products (exclude null) */}
+        {topItems.length > 0 && (
+          <div className="pt-3 border-t border-zen-stone/60">
+            <div className="flex items-center justify-between text-xs text-zen-muted mb-2 font-medium">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-zen-matcha" />
+                <span>Top Treatments & Products Today (Exclude Null)</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zen-muted">Ranked by Qty</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              {topItems.map((item, idx) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between p-2 rounded-lg bg-zen-paper/50 border border-zen-sand/30 text-xs"
+                >
+                  <div className="flex items-center space-x-2 truncate">
+                    <span className="w-5 h-5 rounded flex items-center justify-center bg-white text-[10px] font-bold text-zen-moss border border-zen-sand/40">
+                      {idx + 1}
+                    </span>
+                    <span className="font-semibold text-zen-charcoal truncate" title={item.name}>
+                      {item.name}
+                    </span>
+                  </div>
+                  <span className="ml-2 font-mono font-bold text-zen-moss bg-white px-2 py-0.5 rounded border border-zen-sand/30 flex-shrink-0">
+                    {item.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 };
+
