@@ -64,6 +64,8 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const day = String(now.getDate()).padStart(2, '0');
     const localDateStr = `${year}-${month}-${day}`;
+    const yearShort = String(year).slice(-2);
+    const yymmdd = `${yearShort}${month}${day}`;
 
     // Start of Day in Local Timezone
     const startLocal = new Date(year, now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -72,6 +74,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
     return {
       localDateStr,
+      yymmdd,
       startUTCISO: startLocal.toISOString(),
       endUTCISO: endLocal.toISOString(),
     };
@@ -83,7 +86,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
     try {
       setData((prev) => ({ ...prev, loading: prev.lastUpdated === null }));
-      const { localDateStr, startUTCISO, endUTCISO } = getTodayBounds();
+      const { localDateStr, yymmdd, startUTCISO, endUTCISO } = getTodayBounds();
 
       // Parallel Network Execution: Exactly 4 queries (O(1) roundtrip)
       const [
@@ -105,11 +108,11 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('trans_id, kode_outlet, tanggal, start_time, end_time, status_trans, nama_customer, room_id, subtotal, kodekaryawan, byrequest, typejasa, rcpt, id_payment, user_uid')
           .eq('tanggal', localDateStr),
 
-        // 3. POS Trans Payment Details (Today's activity)
+        // 3. POS Trans Payment Details (Filtered by business payment code YYMMDD, e.g. %.PAY.261016%)
         supabase
           .from('ot_pos_trans_payment_details')
           .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
-          .gte('created_at', startUTCISO),
+          .like('id_payment', `%.PAY.${yymmdd}%`),
 
         // 4. POS Trans Rejection / Walk-in cancellations (Today's rejects)
         supabase
@@ -129,19 +132,19 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       let rawPayments: PosPaymentDetails[] = (paymentDetailsRes.data as PosPaymentDetails[]) || [];
       const rawRejects: PosTransReject[] = (rejectsRes.data as PosTransReject[]) || [];
 
-      // Secondary fallback: If no payments matched created_at timestamp, lookup via today's linked master id_payment
-      if (rawPayments.length === 0 && rawMasters.length > 0) {
-        const linkedPaymentIds = Array.from(
-          new Set(rawMasters.map((m) => m.id_payment).filter((id): id is string => Boolean(id)))
-        );
-        if (linkedPaymentIds.length > 0) {
-          const { data: linkedPayData } = await supabase
-            .from('ot_pos_trans_payment_details')
-            .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
-            .in('id_payment', linkedPaymentIds);
-          if (linkedPayData && linkedPayData.length > 0) {
-            rawPayments = linkedPayData as PosPaymentDetails[];
-          }
+      // Combine with any additional linked payments from today's master transactions
+      const existingPayIds = new Set(rawPayments.map((p) => p.id_payment));
+      const masterPayIds = Array.from(
+        new Set(rawMasters.map((m) => m.id_payment).filter((id): id is string => Boolean(id) && !existingPayIds.has(id)))
+      );
+
+      if (masterPayIds.length > 0) {
+        const { data: extraPayments } = await supabase
+          .from('ot_pos_trans_payment_details')
+          .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
+          .in('id_payment', masterPayIds);
+        if (extraPayments && extraPayments.length > 0) {
+          rawPayments = [...rawPayments, ...(extraPayments as PosPaymentDetails[])];
         }
       }
 
