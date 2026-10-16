@@ -126,8 +126,24 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
       const rawOutlets: MasterOutlet[] = (outletsRes.data as MasterOutlet[]) || [];
       const rawMasters: PosTransMaster[] = (masterTransRes.data as PosTransMaster[]) || [];
-      const rawPayments: PosPaymentDetails[] = (paymentDetailsRes.data as PosPaymentDetails[]) || [];
+      let rawPayments: PosPaymentDetails[] = (paymentDetailsRes.data as PosPaymentDetails[]) || [];
       const rawRejects: PosTransReject[] = (rejectsRes.data as PosTransReject[]) || [];
+
+      // Secondary fallback: If no payments matched created_at timestamp, lookup via today's linked master id_payment
+      if (rawPayments.length === 0 && rawMasters.length > 0) {
+        const linkedPaymentIds = Array.from(
+          new Set(rawMasters.map((m) => m.id_payment).filter((id): id is string => Boolean(id)))
+        );
+        if (linkedPaymentIds.length > 0) {
+          const { data: linkedPayData } = await supabase
+            .from('ot_pos_trans_payment_details')
+            .select('id_payment, kode_outlet, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
+            .in('id_payment', linkedPaymentIds);
+          if (linkedPayData && linkedPayData.length > 0) {
+            rawPayments = linkedPayData as PosPaymentDetails[];
+          }
+        }
+      }
 
       // =========================================================================
       // SINGLE-PASS LINEAR AGGREGATION: O(O + T + P + R)
