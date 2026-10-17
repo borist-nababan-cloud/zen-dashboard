@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
               <p className="text-xs text-zen-muted font-medium">
-                Executive Multi-Outlet Real-time Panorama
+                Executive Multi-Outlet Real-time
               </p>
             </div>
           </div>
