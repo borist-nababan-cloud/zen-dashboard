@@ -34,7 +34,7 @@ export const FinancePromoAnalysis: React.FC<FinancePromoAnalysisProps> = ({
           <span>Finance & Promotions Matrix</span>
         </h2>
         <p className="text-xs text-zen-muted">
-          Settlement tender distribution (merged primary + split payments) and marketing promotion ROI
+          Settlement tender distribution (merged primary + split payments) and marketing promotion
         </p>
       </div>
 
