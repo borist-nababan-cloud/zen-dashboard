@@ -41,7 +41,7 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
   1. **Header:** Live WIB clock, operational date picker, active branch filter dropdown, auto-refresh countdown, and branding.
   2. **The Zen Garden Summary:** Primary Hero KPIs (Gross Sales, Cash on Hand, Active Guests In-Service, Completed Treatments, 5-card Services & Products Breakdown).
   3. **Branch Panorama Grid:** Active outlet cards featuring daily target revenue progress bars, 4-pill treatment service mix (`BJ`, `BA`, `BP`, `BG`), and walk-in rejection counts.
-  4. **Finance & Promo Matrix:** Consolidated tender breakdown (Cash, Card/EDC, QRIS, Voucher) and promotion ROI / discount absorption.
+  4. **Finance & Promo Matrix:** Consolidated tender breakdown (Cash, Card/EDC, QRIS, Voucher) and promotion / discount absorption.
   5. **Rejection & Bottleneck Analysis:** Capacity bottleneck diagnostics on walk-in cancellations.
 
 ## 5. Verification & Build
