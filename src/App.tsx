@@ -26,6 +26,7 @@ export function App() {
     setSelectedDate,
     isOvernightWindow,
     resetToAutoDate,
+    isCustomDate,
   } = useDashboardData(selectedOutlet);
 
   // Big screen auto-scroll enabled on All Outlets network view
@@ -63,6 +64,7 @@ export function App() {
         onSelectDate={setSelectedDate}
         isOvernightWindow={isOvernightWindow}
         onResetDate={resetToAutoDate}
+        isCustomDate={isCustomDate}
       />
 
       {/* Main Content Area */}

@@ -55,6 +55,7 @@ export interface PosPaymentDetails {
 export interface PosTransReject {
   local_autonum?: number;
   kode_outlet: string;
+  tanggal?: string;
   jenis_jasa?: string;
   reason?: string;
   reject_date: string;

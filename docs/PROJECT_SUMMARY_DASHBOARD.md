@@ -23,6 +23,15 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
     - `"BG"` : **GC Sales** (Gift Certificate voucher sales)
   - **Strict Active In-Service Calculation:** Enforces `status_trans = 'STARTED' AND subtotal > 0`, strictly eliminating draft check-ins with `subtotal = 0`.
   - **Consolidated Payment Tenders:** Merges primary tenders (`payment1` + `vpayment1` + `bank1`), split-bill tenders (`payment2` + `vpayment2` + `bank2`), cash, and vouchers (`payment1 = 'VOUCHER'` and `vgift`).
+  - **Systemic Timezone-Drift RCA & Permanent Resolution:**
+    - **RCA:** Browser-local `Date` methods (`now.getHours()`, `now.toISOString()`, `now.toLocaleTimeString()`) caused operational shift boundaries and queries to drift based on client device geography. Simultaneously, `ot_pos_trans_reject` was the only transaction table lacking a native `tanggal DATE` column, causing local timestamp strings pushed by `SyncAgent` to be interpreted as UTC and queried with client timezone offsets.
+      - **Resolution:**
+        - Added native `tanggal DATE` column, composite index `(tanggal, kode_outlet)`, and `NOT NULL` constraint to `ot_pos_trans_reject` across Local, Staging, and Production Supabase (`20261017140000` & `20261017150000`).
+        - Implemented PostgreSQL trigger `trg_ensure_tanggal_reject` that auto-calculates `tanggal` in `Asia/Jakarta` time from `reject_date` on every INSERT/UPDATE if omitted, guaranteeing zero nulls at the storage engine level.
+        - Implemented [`dateUtils.ts`](file:///d:/BEN/Zen/WORK_SPACE/frontend/dashboard/src/lib/dateUtils.ts) establishing `Asia/Jakarta` (WIB, UTC+7) as the authoritative master business clock.
+        - Updated `Header.tsx` to display true live WIB clock via `getWIBLiveClockString()`, with an interactive "Today" reset button when viewing historical dates.
+        - Unified `useDashboardData.ts` to query `ot_pos_trans_reject` via strict indexed `.eq('tanggal', localDateStr)`.
+        - Enforced active outlet membership (`if (!outletMap.has(entity.kode_outlet)) continue;`) and strict operational date guards across master, detail, payment, and rejection aggregation loops.
 - **Live Sync & Telemetry:** 30-second auto-refresh countdown with visibility-pause detection and manual trigger.
 
 ## 4. Visual Design & Zen Brand Identity

@@ -15,6 +15,7 @@ import {
   RejectionReasonItem,
   GlobalGardenSummary,
 } from '../types/dashboard';
+import { getAutoWIBOperationalDate, getOperationalBounds } from '../lib/dateUtils';
 
 // Default mock target sales for outlets to show meaningful progress bars
 const DEFAULT_TARGET_SALES: Record<string, number> = {
@@ -71,50 +72,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
   const [userDateOverride, setUserDateOverride] = useState<string | null>(null);
   const isFetchingRef = useRef(false);
 
-  // Helper to format Date into YYYY-MM-DD
-  const formatDateISO = (d: Date) => {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
-  // Automatic Operational Date:
-  // Outlets close at 23:30. Between 00:00:00 and 07:59:59 (overnight shift review),
-  // default to yesterday's closing business day. From 08:00 onwards, roll over to today.
-  const getAutoOperationalDate = () => {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const isOvernight = currentHour < 8;
-    if (isOvernight) {
-      const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      return { dateStr: formatDateISO(yesterday), isOvernight: true };
-    }
-    return { dateStr: formatDateISO(now), isOvernight: false };
-  };
-
-  const autoDateInfo = getAutoOperationalDate();
+  const autoDateInfo = getAutoWIBOperationalDate();
   const activeDateStr = userDateOverride || autoDateInfo.dateStr;
   const isOvernightWindow = autoDateInfo.isOvernight && (!userDateOverride || userDateOverride === autoDateInfo.dateStr);
-
-  // Timezone-aware date calculations for the active operational date
-  const getOperationalBounds = (dateStr: string) => {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    const yearShort = String(y).slice(-2);
-    const monthStr = String(m).padStart(2, '0');
-    const dayStr = String(d).padStart(2, '0');
-    const yymmdd = `${yearShort}${monthStr}${dayStr}`;
-
-    const startLocal = new Date(y, m - 1, d, 0, 0, 0, 0);
-    const endLocal = new Date(y, m - 1, d, 23, 59, 59, 999);
-
-    return {
-      localDateStr: dateStr,
-      yymmdd,
-      startUTCISO: startLocal.toISOString(),
-      endUTCISO: endLocal.toISOString(),
-    };
-  };
 
   const fetchDashboardMetrics = useCallback(async () => {
     if (isFetchingRef.current) return;
@@ -122,7 +82,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
     try {
       setData((prev) => ({ ...prev, loading: prev.lastUpdated === null }));
-      const { localDateStr, yymmdd, startUTCISO, endUTCISO } = getOperationalBounds(activeDateStr);
+      const { localDateStr, yymmdd, startTimestamp, endTimestamp } = getOperationalBounds(activeDateStr);
 
       // Parallel Network Execution: Outlets, Master, Details, Payments, Rejections, GC Payments
       const [
@@ -159,12 +119,11 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('id_payment, kode_outlet, tanggal, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
           .or(`tanggal.eq.${localDateStr},id_payment.like.%.PAY.${yymmdd}%`),
 
-        // 5. POS Trans Rejection / Walk-in cancellations (Today's rejects)
+        // 5. POS Trans Rejection / Walk-in cancellations (Strict indexed tanggal filter)
         supabase
           .from('ot_pos_trans_reject')
-          .select('local_autonum, kode_outlet, jenis_jasa, reason, reject_date, lasteditdate')
-          .gte('reject_date', startUTCISO)
-          .lte('reject_date', endUTCISO),
+          .select('local_autonum, kode_outlet, tanggal, jenis_jasa, reason, reject_date, lasteditdate')
+          .eq('tanggal', localDateStr),
 
         // 6. POS Trans Payment Details with Gift Certificate tender (vgift > 0)
         supabase
@@ -256,6 +215,12 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
       // 2. Process Trans Master in O(T)
       for (const m of rawMasters) {
+        // Enforce active outlet membership
+        if (!outletMap.has(m.kode_outlet)) continue;
+
+        // Defensive date guard: ensure master belongs to operational date
+        if (m.tanggal && m.tanggal !== localDateStr) continue;
+
         const subtotal = Number(m.subtotal) || 0;
         // Only exclude negative subtotal amounts (voided/refunded)
         if (subtotal < 0) continue;
@@ -293,6 +258,12 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const outletItemMaps = new Map<string, Map<string, number>>();
 
       for (const d of rawDetails) {
+        // Enforce active outlet membership
+        if (!outletMap.has(d.kode_outlet)) continue;
+
+        // Defensive date guard: ensure detail belongs to operational date
+        if (d.tanggal && d.tanggal !== localDateStr) continue;
+
         const isTargetOutlet = selectedOutletCode === 'ALL' || d.kode_outlet === selectedOutletCode;
         const qty = Number(d.qty) || 1;
         const rawNama = d.produk_jasa_nama && d.produk_jasa_nama.trim() !== '' ? d.produk_jasa_nama.trim() : null;
@@ -363,6 +334,12 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const promoImpactMap = new Map<string, { totalDiscount: number; usageCount: number }>();
 
       for (const p of rawPayments) {
+        // Enforce active outlet membership
+        if (!outletMap.has(p.kode_outlet)) continue;
+
+        // Defensive date guard: ensure payment belongs to operational date
+        if (p.tanggal && p.tanggal !== localDateStr && !p.id_payment.includes(`.PAY.${yymmdd}`)) continue;
+
         const isTargetOutlet = selectedOutletCode === 'ALL' || p.kode_outlet === selectedOutletCode;
         const amountTotal = Number(p.total) || 0;
         const amountCash = Number(p.vcash) || 0;
@@ -444,6 +421,13 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const rejectionReasonMap = new Map<string, { count: number; services: Set<string> }>();
 
       for (const r of rawRejects) {
+        // Enforce active outlet membership
+        if (!outletMap.has(r.kode_outlet)) continue;
+
+        // Strict defensive date guard: ensure record's date strictly matches operational date
+        const rDate = r.tanggal || (r.reject_date || '').slice(0, 10);
+        if (rDate && rDate !== localDateStr) continue;
+
         const isTargetOutlet = selectedOutletCode === 'ALL' || r.kode_outlet === selectedOutletCode;
         if (isTargetOutlet) {
           globalTotalRejections++;
@@ -566,5 +550,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
     setSelectedDate: setUserDateOverride,
     isOvernightWindow,
     resetToAutoDate: () => setUserDateOverride(null),
+    isCustomDate: userDateOverride !== null,
   };
 }
