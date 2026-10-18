@@ -20,11 +20,15 @@ import { GlobalGardenSummary } from '../types/dashboard';
 interface ZenGardenSummaryProps {
   summary: GlobalGardenSummary;
   selectedOutletName?: string;
+  selectedOutletCode?: string;
+  onResetOutlet?: () => void;
 }
 
 export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
   summary,
   selectedOutletName = 'All Active Outlets',
+  selectedOutletCode = 'ALL',
+  onResetOutlet,
 }) => {
   const formatIDR = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -38,18 +42,56 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
 
   return (
     <section className="mb-8">
-      {/* Section Sub-heading */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-bold font-serif text-zen-charcoal flex items-center gap-2">
-            <span>Zen Family Spa & Reflexology</span>
-            <span className="text-xs font-sans font-normal text-zen-muted bg-white px-2.5 py-0.5 rounded-full border border-zen-sand/40">
-              {selectedOutletName}
-            </span>
-          </h2>
-          <p className="text-xs text-zen-muted">Today's high-level operational velocity and financial liquidity</p>
+      {/* Eye-Catching Outlet Header Banner for Single Outlet Detail View */}
+      {selectedOutletCode && selectedOutletCode !== 'ALL' ? (
+        <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-white border-2 border-zen-matcha/50 shadow-zen relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-36 h-36 bg-zen-matcha/5 rounded-full -mr-12 -mt-12 pointer-events-none"></div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+            <div className="flex items-center space-x-3.5">
+              <div className="px-3.5 py-2.5 rounded-xl bg-zen-matcha text-white font-mono font-black text-xl sm:text-2xl shadow-sm tracking-wider flex items-center justify-center ring-2 ring-zen-moss/30 flex-shrink-0">
+                {selectedOutletCode}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-bold font-serif text-zen-charcoal tracking-tight">
+                    {selectedOutletName}
+                  </h2>
+                  <span className="flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1"></span>
+                    Live Branch Detail
+                  </span>
+                </div>
+                <p className="text-xs text-zen-muted font-medium mt-0.5">
+                  Dedicated operational overview, staff on-duty, and floor capacity analysis
+                </p>
+              </div>
+            </div>
+
+            {onResetOutlet && (
+              <button
+                onClick={onResetOutlet}
+                className="self-start sm:self-auto flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-zen-paper hover:bg-white border border-zen-sand/60 text-zen-charcoal text-xs font-bold hover:border-zen-matcha hover:text-zen-moss transition-all shadow-sm active:scale-95"
+              >
+                <span>&larr; Back to All Outlets</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Global Network Sub-heading */
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold font-serif text-zen-charcoal flex items-center gap-2">
+              <span>Zen Family Spa & Reflexology</span>
+              <span className="text-xs font-sans font-normal text-zen-muted bg-white px-2.5 py-0.5 rounded-full border border-zen-sand/40">
+                {selectedOutletName}
+              </span>
+            </h2>
+            <p className="text-xs text-zen-muted">Today's high-level operational velocity and financial liquidity</p>
+          </div>
+        </div>
+      )}
+
 
       {/* 5 Primary Hero Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-4 mb-5">
@@ -264,35 +306,40 @@ export const ZenGardenSummary: React.FC<ZenGardenSummaryProps> = ({
           </div>
         </div>
 
-        {/* Top Treatments & Products (exclude null) */}
+        {/* Treatments & Products Ranking (exclude null) - Complete Catalog Sorted by QTY */}
         {topItems.length > 0 && (
           <div className="pt-3 border-t border-zen-stone/60">
-            <div className="flex items-center justify-between text-xs text-zen-muted mb-2 font-medium">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-zen-muted mb-2.5 font-medium">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-zen-matcha" />
-                <span>Top Treatments & Products Today (Exclude Null)</span>
+                <span className="font-bold text-zen-charcoal">All Treatments & Products Today (Exclude Null)</span>
               </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider text-zen-muted">Ranked by Qty</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-zen-moss bg-zen-paper px-2.5 py-0.5 rounded-full border border-zen-sand/40 self-start sm:self-auto">
+                Total {topItems.length} Items • Ranked by QTY
+              </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-              {topItems.map((item, idx) => (
-                <div
-                  key={item.name}
-                  className="flex items-center justify-between p-2 rounded-lg bg-zen-paper/50 border border-zen-sand/30 text-xs"
-                >
-                  <div className="flex items-center space-x-2 truncate">
-                    <span className="w-5 h-5 rounded flex items-center justify-center bg-white text-[10px] font-bold text-zen-moss border border-zen-sand/40">
-                      {idx + 1}
-                    </span>
-                    <span className="font-semibold text-zen-charcoal truncate" title={item.name}>
-                      {item.name}
+            
+            <div className="max-h-80 overflow-y-auto pr-1 space-y-1 scrollbar-thin">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {topItems.map((item, idx) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between p-2 rounded-xl bg-zen-paper/60 border border-zen-sand/30 hover:border-zen-matcha/40 hover:bg-white transition-all text-xs"
+                  >
+                    <div className="flex items-center space-x-2 truncate">
+                      <span className="w-5 h-5 rounded-lg flex items-center justify-center bg-white text-[10px] font-mono font-bold text-zen-moss border border-zen-sand/40 flex-shrink-0 shadow-2xs">
+                        {idx + 1}
+                      </span>
+                      <span className="font-semibold text-zen-charcoal truncate" title={item.name}>
+                        {item.name}
+                      </span>
+                    </div>
+                    <span className="ml-2 font-mono font-bold text-zen-moss bg-white px-2 py-0.5 rounded-lg border border-zen-sand/30 flex-shrink-0 shadow-2xs">
+                      {item.count}
                     </span>
                   </div>
-                  <span className="ml-2 font-mono font-bold text-zen-moss bg-white px-2 py-0.5 rounded border border-zen-sand/30 flex-shrink-0">
-                    {item.count}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         )}

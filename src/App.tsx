@@ -3,6 +3,7 @@ import { useDashboardData } from './hooks/useDashboardData';
 import { useAutoScroll } from './hooks/useAutoScroll';
 import { Header } from './components/Header';
 import { ZenGardenSummary } from './components/ZenGardenSummary';
+import { RoomTherapistAnalysis } from './components/RoomTherapistAnalysis';
 import { OutletPanoramaGrid } from './components/OutletPanoramaGrid';
 import { FinancePromoAnalysis } from './components/FinancePromoAnalysis';
 import { RejectionAnalysis } from './components/RejectionAnalysis';
@@ -105,20 +106,31 @@ export function App() {
           </div>
         ) : (
           <>
-            {/* 1. Zen Family Spa & Reflexology Global KPI Summary */}
+            {/* 1. Zen Family Spa & Reflexology Primary KPI Summary */}
             <ZenGardenSummary
               summary={summary}
               selectedOutletName={selectedOutletName}
+              selectedOutletCode={selectedOutlet}
+              onResetOutlet={() => setSelectedOutlet('ALL')}
             />
 
-            {/* 2. Outlet Panorama Grid (Progress, Services Mix, Rejections) */}
+            {/* 2. Human Resources On-Duty Staff & Room/Therapist Capacity Analytics */}
+            <RoomTherapistAnalysis
+              hrMetrics={summary.hrMetrics}
+              roomMetrics={summary.roomMetrics}
+              therapistMetrics={summary.therapistMetrics}
+              selectedOutletName={selectedOutletName}
+              selectedOutletCode={selectedOutlet}
+            />
+
+            {/* 3. Outlet Panorama Grid (Progress, Services Mix, Rejections) */}
             <OutletPanoramaGrid
               outlets={outlets}
               selectedOutletCode={selectedOutlet}
               onSelectOutlet={setSelectedOutlet}
             />
 
-            {/* 3. Finance & Promotions Matrix */}
+            {/* 4. Finance & Promotions Matrix */}
             <FinancePromoAnalysis
               paymentBreakdown={paymentBreakdown}
               promoImpact={promoImpact}
@@ -126,7 +138,7 @@ export function App() {
               totalDiscounts={summary.totalDiscounts}
             />
 
-            {/* 4. Walk-in Rejection Analysis */}
+            {/* 5. Walk-in Rejection Analysis */}
             <RejectionAnalysis
               reasons={rejectionReasons}
               totalRejections={summary.totalRejections}
@@ -134,6 +146,7 @@ export function App() {
           </>
         )}
       </main>
+
 
       {/* Floating Kiosk / Head Office TV Auto-Scroll Controller */}
       {selectedOutlet === 'ALL' && !loading && (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { OutletCardMetrics } from '../types/dashboard';
-import { Store, UserCheck, AlertCircle, Sparkles, MapPin, TrendingUp, Gift } from 'lucide-react';
+import { Store, UserCheck, AlertCircle, Sparkles, MapPin, TrendingUp, Gift, DoorOpen, Users } from 'lucide-react';
 
 interface OutletPanoramaGridProps {
   outlets: OutletCardMetrics[];
@@ -175,8 +175,24 @@ export const OutletPanoramaGrid: React.FC<OutletPanoramaGridProps> = ({
                 )}
               </div>
 
-              {/* Metric C: Guest Flow & Rejection Counter */}
-              <div className="pt-2.5 border-t border-zen-stone/60 flex items-center justify-between text-xs">
+              {/* Metric C: Staff & Room Live Capacity */}
+              {(item.hrMetrics?.totalActiveStaff || item.roomMetrics?.totalRooms) ? (
+                <div className="pt-2 mb-2 flex items-center justify-between text-[11px] text-zen-muted border-t border-zen-stone/40">
+                  <span className="flex items-center space-x-1" title="In-Charge Therapists: Foot (TR) & Body (TB)">
+                    <Users className="w-3 h-3 text-zen-moss" />
+                    <span className="font-semibold text-zen-charcoal">{item.therapistMetrics?.totalInCharge || 0} Therapists</span>
+                    <span className="text-[10px] text-zen-muted">({item.hrMetrics?.activeTR || 0} TR / {item.hrMetrics?.activeTB || 0} TB)</span>
+                  </span>
+                  <span className="flex items-center space-x-1" title="Active Rooms & Available">
+                    <DoorOpen className="w-3 h-3 text-zen-matcha" />
+                    <span className="font-semibold text-zen-charcoal">{item.roomMetrics?.totalRooms || 0} Rooms</span>
+                    <span className="text-[10px] font-bold text-emerald-700">({item.roomMetrics?.availableRooms || 0} Free)</span>
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Metric D: Guest Flow & Rejection Counter */}
+              <div className="pt-2 border-t border-zen-stone/60 flex items-center justify-between text-xs">
                 <div className="flex items-center space-x-1.5 text-zen-muted">
                   <UserCheck className="w-3.5 h-3.5 text-zen-matcha" />
                   <span>{completedGuests} Completed</span>

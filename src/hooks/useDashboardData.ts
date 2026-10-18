@@ -14,6 +14,12 @@ import {
   PromoImpactItem,
   RejectionReasonItem,
   GlobalGardenSummary,
+  MasterRoom,
+  HrdAbsenHarian,
+  HrdKaryawanInfo,
+  OutletHRMetrics,
+  OutletRoomMetrics,
+  OutletTherapistMetrics,
 } from '../types/dashboard';
 import { getAutoWIBOperationalDate, getOperationalBounds } from '../lib/dateUtils';
 
@@ -35,12 +41,61 @@ const DEFAULT_TARGET_SALES: Record<string, number> = {
   '218': 15000000, // Hilton
 };
 
+const DEPT_LABELS: Record<string, string> = {
+  TR: 'Therapist Foot (Reflexology)',
+  TB: 'Therapist Body Massage',
+  FO: 'Front Office / Reception',
+  KASIR: 'Cashier Desk',
+  OB: 'Office Boy / Cleaning',
+  SEC: 'Security',
+  SPV: 'Supervisor / Head of Shift',
+  MGR: 'Branch Manager',
+  ADM: 'Administration',
+  WH: 'Warehouse / Supply',
+  OTHER: 'General Staff',
+};
+
 const createEmptyCategoryMix = (): CategoryMix => ({
   footAndBody: 0,
   additional: 0,
   product: 0,
   gcSales: 0,
   total: 0,
+});
+
+const createEmptyHRMetrics = (): OutletHRMetrics => ({
+  totalActiveStaff: 0,
+  activeTR: 0,
+  activeTB: 0,
+  departments: [],
+});
+
+const createEmptyRoomMetrics = (): OutletRoomMetrics => ({
+  totalRooms: 0,
+  roomsBM: 0,
+  roomsRF: 0,
+  usedRooms: 0,
+  usedBM: 0,
+  usedRF: 0,
+  availableRooms: 0,
+  availableBM: 0,
+  availableRF: 0,
+  occupancyPercent: 0,
+  cumulativeTurnover: 0,
+});
+
+const createEmptyTherapistMetrics = (): OutletTherapistMetrics => ({
+  inChargeTR: 0,
+  inChargeTB: 0,
+  totalInCharge: 0,
+  onTreatmentRF: 0,
+  onTreatmentBM: 0,
+  totalOnTreatment: 0,
+  availableTR: 0,
+  availableTB: 0,
+  totalAvailable: 0,
+  utilizationPercent: 0,
+  cumulativeProductivity: 0,
 });
 
 export function useDashboardData(selectedOutletCode: string = 'ALL') {
@@ -60,6 +115,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       totalRejections: 0,
       categoryMix: createEmptyCategoryMix(),
       topItems: [],
+      hrMetrics: createEmptyHRMetrics(),
+      roomMetrics: createEmptyRoomMetrics(),
+      therapistMetrics: createEmptyTherapistMetrics(),
     },
     outlets: [],
     paymentBreakdown: [],
@@ -82,16 +140,19 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
 
     try {
       setData((prev) => ({ ...prev, loading: prev.lastUpdated === null }));
-      const { localDateStr, yymmdd, startTimestamp, endTimestamp } = getOperationalBounds(activeDateStr);
+      const { localDateStr, yymmdd } = getOperationalBounds(activeDateStr);
 
-      // Parallel Network Execution: Outlets, Master, Details, Payments, Rejections, GC Payments
+      // Parallel Network Execution: Outlets, Master, Details, Payments, Rejections, GC Payments, Rooms, Attendance, Employees
       const [
         outletsRes,
         masterTransRes,
         detailsRes,
         paymentDetailsRes,
         rejectsRes,
-        gcPaymentsRes
+        gcPaymentsRes,
+        roomsRes,
+        absenRes,
+        karyawanRes,
       ] = await Promise.all([
         // 1. Master Outlets (Active Only)
         supabase
@@ -131,7 +192,25 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           .select('id_payment, kode_outlet, tanggal, namapromo, refpromo, vpromo, refdisc, vdisc, total, vredeem, refgift, vgift, vcash, payment1, bank1, refpayment1, vpayment1, payment2, bank2, refpayment2, vpayment2, rcpt, created_at')
           .gt('vgift', 0)
           .or(`tanggal.eq.${localDateStr},id_payment.like.%.PAY.${yymmdd}%`)
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false }),
+
+        // 7. Master Rooms (Active Rooms per Outlet)
+        supabase
+          .from('ot_master_room')
+          .select('uid, kode_outlet, room_id, active, jenis_jasa, room_gender, available, keterangan')
+          .eq('active', true),
+
+        // 8. HR Daily Attendance (ot_hrd_absen_harian)
+        supabase
+          .from('ot_hrd_absen_harian')
+          .select('kode_outlet, kodekaryawan, id_karyawan, nama, tanggal, fp_in, fp_out')
+          .eq('tanggal', localDateStr),
+
+        // 9. Employee Master Info (ot_hrd_karyawan_info)
+        supabase
+          .from('ot_hrd_karyawan_info')
+          .select('kode_outlet, kodekaryawan, idkaryawan, namakaryawan, departemen, active')
+          .eq('active', 'Y'),
       ]);
 
       if (outletsRes.error) throw new Error(`Outlets Error: ${outletsRes.error.message}`);
@@ -145,6 +224,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const rawMasters: PosTransMaster[] = (masterTransRes.data as PosTransMaster[]) || [];
       const rawDetails: PosTransDetail[] = (detailsRes.data as PosTransDetail[]) || [];
       const rawRejects: PosTransReject[] = (rejectsRes.data as PosTransReject[]) || [];
+      const rawRooms: MasterRoom[] = (roomsRes.data as MasterRoom[]) || [];
+      const rawAbsen: HrdAbsenHarian[] = (absenRes.data as HrdAbsenHarian[]) || [];
+      const rawKaryawan: HrdKaryawanInfo[] = (karyawanRes.data as HrdKaryawanInfo[]) || [];
 
       // Combine payment records with deduplication by id_payment
       const paymentMap = new Map<string, PosPaymentDetails>();
@@ -177,10 +259,91 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       const rawPayments = Array.from(paymentMap.values());
 
       // =========================================================================
-      // SINGLE-PASS LINEAR AGGREGATION: O(O + T + D + P + R)
+      // 1. HR KARYAWAN & ATTENDANCE AGGREGATION
+      // Standard shift completion rule:
+      // If fp_in is present and fp_out is present, and (fp_out - fp_in) >= 2 hours:
+      // Employee has completed their shift and gone home -> EXCLUDE.
+      // =========================================================================
+      const karyawanInfoMap = new Map<string, HrdKaryawanInfo>();
+      for (const k of rawKaryawan) {
+        if (k.kodekaryawan) {
+          karyawanInfoMap.set(k.kodekaryawan.trim().toUpperCase(), k);
+        }
+      }
+
+      // Outlet HR accumulation maps: Map<kode_outlet, { activeTR, activeTB, totalActive, deptCounts: Map<dept, count> }>
+      const outletHRData = new Map<
+        string,
+        { activeTR: number; activeTB: number; totalActive: number; deptMap: Map<string, number> }
+      >();
+
+      for (const outlet of rawOutlets) {
+        outletHRData.set(outlet.kode_outlet, {
+          activeTR: 0,
+          activeTB: 0,
+          totalActive: 0,
+          deptMap: new Map<string, number>(),
+        });
+      }
+
+      for (const a of rawAbsen) {
+        if (!outletHRData.has(a.kode_outlet)) continue;
+        if (a.tanggal && a.tanggal !== localDateStr) continue;
+
+        const hasIn = Boolean(a.fp_in);
+        const hasOut = Boolean(a.fp_out);
+
+        // If neither fingerprint scan exists, omit
+        if (!hasIn && !hasOut) continue;
+
+        // Option 1 Standard Shift Completion check:
+        // If employee has clocked out and duration between in & out is >= 2 hours, they have gone home
+        if (hasIn && hasOut) {
+          const inTime = new Date(a.fp_in!).getTime();
+          const outTime = new Date(a.fp_out!).getTime();
+          const durationHours = (outTime - inTime) / (1000 * 60 * 60);
+          if (durationHours >= 2) {
+            continue; // Exclude: completed shift and went home
+          }
+        }
+
+        // Active employee on-duty!
+        const oHR = outletHRData.get(a.kode_outlet)!;
+        const empCode = (a.kodekaryawan || '').trim().toUpperCase();
+        const empInfo = karyawanInfoMap.get(empCode);
+        const dept = (empInfo?.departemen || 'OTHER').trim().toUpperCase();
+
+        oHR.totalActive++;
+        oHR.deptMap.set(dept, (oHR.deptMap.get(dept) || 0) + 1);
+
+        // "TR" = Foot Therapist, "TB" = Body Therapist
+        if (dept === 'TR') {
+          oHR.activeTR++;
+        } else if (dept === 'TB') {
+          oHR.activeTB++;
+        }
+      }
+
+      // =========================================================================
+      // 2. MASTER ROOMS MAP & INDEXING
+      // =========================================================================
+      // Map<kode_outlet, Map<room_id, MasterRoom>>
+      const outletRoomsMap = new Map<string, Map<string, MasterRoom>>();
+      for (const outlet of rawOutlets) {
+        outletRoomsMap.set(outlet.kode_outlet, new Map());
+      }
+      for (const r of rawRooms) {
+        const oRooms = outletRoomsMap.get(r.kode_outlet);
+        if (oRooms && r.room_id) {
+          oRooms.set(r.room_id.trim().toUpperCase(), r);
+        }
+      }
+
+      // =========================================================================
+      // 3. SINGLE-PASS LINEAR AGGREGATION: O(O + T + D + P + R)
       // =========================================================================
 
-      // 1. Initialize Outlet Metrics Map in O(O)
+      // Initialize Outlet Metrics Map in O(O)
       const outletMap = new Map<string, OutletCardMetrics>();
       for (const outlet of rawOutlets) {
         outletMap.set(outlet.kode_outlet, {
@@ -196,6 +359,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           topItems: [],
           targetSales: DEFAULT_TARGET_SALES[outlet.kode_outlet] || 10000000,
           progressPercent: 0,
+          hrMetrics: createEmptyHRMetrics(),
+          roomMetrics: createEmptyRoomMetrics(),
+          therapistMetrics: createEmptyTherapistMetrics(),
         });
       }
 
@@ -213,25 +379,32 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       // Master typejasa lookup map for detail category resolution
       const masterTypeMap = new Map<string, string>();
 
-      // 2. Process Trans Master in O(T)
-      for (const m of rawMasters) {
-        // Enforce active outlet membership
-        if (!outletMap.has(m.kode_outlet)) continue;
+      // Track active rooms and active therapists currently on-treatment (status_trans = STARTED)
+      // Map<kode_outlet, Set<room_id>>
+      const activeRoomsUsedMap = new Map<string, Set<string>>();
+      // Map<kode_outlet, { activeRF: Set<kodekaryawan>, activeBM: Set<kodekaryawan> }>
+      const activeTherapistsWorkingMap = new Map<string, { rf: Set<string>; bm: Set<string> }>();
 
-        // Defensive date guard: ensure master belongs to operational date
+      for (const outlet of rawOutlets) {
+        activeRoomsUsedMap.set(outlet.kode_outlet, new Set());
+        activeTherapistsWorkingMap.set(outlet.kode_outlet, { rf: new Set(), bm: new Set() });
+      }
+
+      // Process Trans Master in O(T)
+      for (const m of rawMasters) {
+        if (!outletMap.has(m.kode_outlet)) continue;
         if (m.tanggal && m.tanggal !== localDateStr) continue;
 
         const subtotal = Number(m.subtotal) || 0;
-        // Only exclude negative subtotal amounts (voided/refunded)
         if (subtotal < 0) continue;
 
-        if (m.typejasa) {
-          masterTypeMap.set(m.trans_id, m.typejasa.trim().toUpperCase());
+        const rawTypeJasa = (m.typejasa || '').trim().toUpperCase();
+        if (rawTypeJasa) {
+          masterTypeMap.set(m.trans_id, rawTypeJasa);
         }
 
         const isTargetOutlet = selectedOutletCode === 'ALL' || m.kode_outlet === selectedOutletCode;
         const statusUpper = (m.status_trans || '').trim().toUpperCase();
-        // Active In-Service: Only active in-service guests with status STARTED and subtotal > 0 (strictly excluding subtotal = 0)
         const isStarted = statusUpper === 'STARTED' && subtotal > 0;
         const isCompleted = statusUpper === 'PAID' || statusUpper === 'CHECKOUT' || statusUpper === 'FINISHED';
 
@@ -245,23 +418,35 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           if (isStarted) outletMetrics.activeGuests++;
           if (isCompleted && subtotal > 0) outletMetrics.completedGuests++;
         }
+
+        // Room & Therapist live occupancy tracking for active transactions
+        if (isStarted) {
+          // Track room
+          if (m.room_id && m.room_id.trim() !== '') {
+            const cleanRoomId = m.room_id.trim().toUpperCase();
+            activeRoomsUsedMap.get(m.kode_outlet)?.add(cleanRoomId);
+          }
+          // Track therapist: TR = RF (Reflexology/Foot), TB = BM (Body Massage)
+          if (m.kodekaryawan && m.kodekaryawan.trim() !== '') {
+            const cleanKaryawan = m.kodekaryawan.trim().toUpperCase();
+            const isRF = rawTypeJasa.startsWith('RF') || rawTypeJasa.includes('REFLEX');
+            const thMap = activeTherapistsWorkingMap.get(m.kode_outlet);
+            if (isRF) {
+              thMap?.rf.add(cleanKaryawan);
+            } else {
+              thMap?.bm.add(cleanKaryawan);
+            }
+          }
+        }
       }
 
-      // 3. Process Trans Details in O(D)
-      // Standard categories per user specification:
-      // "BA" : Additional
-      // "BG" : GC Sales
-      // "BJ" : Foot & Body (also maps legacy BM, RF)
-      // "BP" : Product (also maps legacy PR)
+      // Process Trans Details in O(D)
       const globalCategoryMix = createEmptyCategoryMix();
       const globalItemCounts = new Map<string, number>();
       const outletItemMaps = new Map<string, Map<string, number>>();
 
       for (const d of rawDetails) {
-        // Enforce active outlet membership
         if (!outletMap.has(d.kode_outlet)) continue;
-
-        // Defensive date guard: ensure detail belongs to operational date
         if (d.tanggal && d.tanggal !== localDateStr) continue;
 
         const isTargetOutlet = selectedOutletCode === 'ALL' || d.kode_outlet === selectedOutletCode;
@@ -278,7 +463,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         } else if (rawType === 'BP' || rawType === 'PR') {
           catCode = 'BP'; // Product
         } else {
-          // 'BJ', 'BM', 'RF', or any service
           catCode = 'BJ'; // Foot & Body
         }
 
@@ -312,32 +496,27 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         }
       }
 
-      // Attach top items to each outlet
+      // Attach ALL sorted items to each outlet (No slice - complete ranking)
       for (const [outletCode, oMap] of outletItemMaps.entries()) {
         const oMetrics = outletMap.get(outletCode);
         if (oMetrics) {
           oMetrics.topItems = Array.from(oMap.entries())
             .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 3);
+            .sort((a, b) => b.count - a.count);
         }
       }
 
-      // Top items for global summary
+      // Top items for global summary (Complete ranking sorted by QTY descending - No slice limit)
       const globalTopItems: ItemRankItem[] = Array.from(globalItemCounts.entries())
         .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6);
+        .sort((a, b) => b.count - a.count);
 
-      // 4. Process Payments & Payment Merging in O(P)
+      // Process Payments & Payment Merging in O(P)
       const paymentMethodMap = new Map<string, { total: number; count: number }>();
       const promoImpactMap = new Map<string, { totalDiscount: number; usageCount: number }>();
 
       for (const p of rawPayments) {
-        // Enforce active outlet membership
         if (!outletMap.has(p.kode_outlet)) continue;
-
-        // Defensive date guard: ensure payment belongs to operational date
         if (p.tanggal && p.tanggal !== localDateStr && !p.id_payment.includes(`.PAY.${yymmdd}`)) continue;
 
         const isTargetOutlet = selectedOutletCode === 'ALL' || p.kode_outlet === selectedOutletCode;
@@ -352,8 +531,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           globalTotalDiscounts += amountDisc;
           globalTotalPromos += amountPromo;
 
-          // Merge Payment Methods Logic (Payment1 + Payment2 + Cash + Gift)
-          // A. Cash
+          // Merge Payment Methods Logic
           if (amountCash > 0) {
             const entry = paymentMethodMap.get('CASH') || { total: 0, count: 0 };
             entry.total += amountCash;
@@ -361,7 +539,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
             paymentMethodMap.set('CASH', entry);
           }
 
-          // B. Payment 1 (EDC / QRIS / Transfer)
           const p1Amount = Number(p.vpayment1) || 0;
           if (p.payment1 && p1Amount > 0) {
             const label = `${p.payment1} ${p.bank1 ? `(${p.bank1})` : ''}`.trim().toUpperCase();
@@ -371,7 +548,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
             paymentMethodMap.set(label, entry);
           }
 
-          // C. Payment 2 (Split bill tender)
           const p2Amount = Number(p.vpayment2) || 0;
           if (p.payment2 && p2Amount > 0) {
             const label = `${p.payment2} ${p.bank2 ? `(${p.bank2})` : ''}`.trim().toUpperCase();
@@ -381,7 +557,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
             paymentMethodMap.set(label, entry);
           }
 
-          // D. Gift voucher (GC Payment)
           const vGift = Number(p.vgift) || 0;
           if (vGift > 0) {
             globalGCPayment += vGift;
@@ -394,7 +569,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
             paymentMethodMap.set(label, entry);
           }
 
-          // Promo tracking
           if (p.namapromo && p.namapromo.trim() !== '' && p.namapromo.toUpperCase() !== '(NONE)') {
             const promoKey = p.namapromo.trim();
             const pEntry = promoImpactMap.get(promoKey) || { totalDiscount: 0, usageCount: 0 };
@@ -404,7 +578,6 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
           }
         }
 
-        // Per-outlet financial tracking
         const outletMetrics = outletMap.get(p.kode_outlet);
         if (outletMetrics) {
           outletMetrics.totalSales += amountTotal;
@@ -417,14 +590,11 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         }
       }
 
-      // 5. Process Rejections in O(R)
+      // Process Rejections in O(R)
       const rejectionReasonMap = new Map<string, { count: number; services: Set<string> }>();
 
       for (const r of rawRejects) {
-        // Enforce active outlet membership
         if (!outletMap.has(r.kode_outlet)) continue;
-
-        // Strict defensive date guard: ensure record's date strictly matches operational date
         const rDate = r.tanggal || (r.reject_date || '').slice(0, 10);
         if (rDate && rDate !== localDateStr) continue;
 
@@ -442,6 +612,163 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         if (outletMetrics) {
           outletMetrics.rejectionCount++;
         }
+      }
+
+      // =========================================================================
+      // 4. ATTACH HR, ROOM & THERAPIST METRICS PER OUTLET & COMPUTE TOTALS
+      // =========================================================================
+      let globalActiveTR = 0;
+      let globalActiveTB = 0;
+      let globalTotalActiveStaff = 0;
+      const globalDeptMap = new Map<string, number>();
+
+      let globalTotalRooms = 0;
+      let globalRoomsBM = 0;
+      let globalRoomsRF = 0;
+      let globalUsedRooms = 0;
+      let globalUsedBM = 0;
+      let globalUsedRF = 0;
+
+      let globalOnTreatmentRF = 0;
+      let globalOnTreatmentBM = 0;
+
+      for (const outlet of rawOutlets) {
+        const oMetrics = outletMap.get(outlet.kode_outlet)!;
+        const oHR = outletHRData.get(outlet.kode_outlet) || {
+          activeTR: 0,
+          activeTB: 0,
+          totalActive: 0,
+          deptMap: new Map(),
+        };
+
+        // Format HR department staff list
+        const departments: { departemen: string; label: string; count: number }[] = Array.from(
+          oHR.deptMap.entries()
+        )
+          .map(([dept, count]) => ({
+            departemen: dept,
+            label: DEPT_LABELS[dept] || dept,
+            count,
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        oMetrics.hrMetrics = {
+          totalActiveStaff: oHR.totalActive,
+          activeTR: oHR.activeTR,
+          activeTB: oHR.activeTB,
+          departments,
+        };
+
+        // Accumulate global HR metrics
+        globalActiveTR += oHR.activeTR;
+        globalActiveTB += oHR.activeTB;
+        globalTotalActiveStaff += oHR.totalActive;
+        for (const [dept, count] of oHR.deptMap.entries()) {
+          globalDeptMap.set(dept, (globalDeptMap.get(dept) || 0) + count);
+        }
+
+        // Room Calculations for Outlet
+        const oRoomsMap = outletRoomsMap.get(outlet.kode_outlet) || new Map();
+        let totalRooms = oRoomsMap.size;
+        let roomsBM = 0;
+        let roomsRF = 0;
+
+        for (const r of oRoomsMap.values()) {
+          const type = (r.jenis_jasa || '').trim().toUpperCase();
+          if (type === 'RF' || type.includes('REFLEX')) {
+            roomsRF++;
+          } else {
+            roomsBM++;
+          }
+        }
+
+        const usedRoomsSet = activeRoomsUsedMap.get(outlet.kode_outlet) || new Set();
+        let usedBM = 0;
+        let usedRF = 0;
+
+        for (const roomId of usedRoomsSet) {
+          const roomObj = oRoomsMap.get(roomId);
+          if (roomObj) {
+            const rType = (roomObj.jenis_jasa || '').trim().toUpperCase();
+            if (rType === 'RF' || rType.includes('REFLEX')) usedRF++;
+            else usedBM++;
+          } else {
+            // Fallback assumption: if room id not in master room, count as BM
+            usedBM++;
+          }
+        }
+
+        const usedRooms = usedRoomsSet.size;
+        const availableRooms = Math.max(0, totalRooms - usedRooms);
+        const availableBM = Math.max(0, roomsBM - usedBM);
+        const availableRF = Math.max(0, roomsRF - usedRF);
+        const occupancyPercent = totalRooms > 0 ? Math.round((usedRooms / totalRooms) * 100) : 0;
+        const cumulativeTurnover =
+          totalRooms > 0
+            ? Math.round(((oMetrics.completedGuests + oMetrics.activeGuests) / totalRooms) * 10) / 10
+            : 0;
+
+        oMetrics.roomMetrics = {
+          totalRooms,
+          roomsBM,
+          roomsRF,
+          usedRooms,
+          usedBM,
+          usedRF,
+          availableRooms,
+          availableBM,
+          availableRF,
+          occupancyPercent,
+          cumulativeTurnover,
+        };
+
+        // Accumulate global room counts
+        globalTotalRooms += totalRooms;
+        globalRoomsBM += roomsBM;
+        globalRoomsRF += roomsRF;
+        globalUsedRooms += usedRooms;
+        globalUsedBM += usedBM;
+        globalUsedRF += usedRF;
+
+        // Therapist Calculations for Outlet
+        const inChargeTR = oHR.activeTR; // Foot
+        const inChargeTB = oHR.activeTB; // Body
+        const totalInCharge = inChargeTR + inChargeTB;
+
+        const thWorking = activeTherapistsWorkingMap.get(outlet.kode_outlet) || {
+          rf: new Set(),
+          bm: new Set(),
+        };
+        const onTreatmentRF = thWorking.rf.size;
+        const onTreatmentBM = thWorking.bm.size;
+        const totalOnTreatment = onTreatmentRF + onTreatmentBM;
+
+        const availableTR = Math.max(0, inChargeTR - onTreatmentRF);
+        const availableTB = Math.max(0, inChargeTB - onTreatmentBM);
+        const totalAvailable = availableTR + availableTB;
+        const utilizationPercent =
+          totalInCharge > 0 ? Math.round((totalOnTreatment / totalInCharge) * 100) : 0;
+        const cumulativeProductivity =
+          totalInCharge > 0
+            ? Math.round(((oMetrics.completedGuests + oMetrics.activeGuests) / totalInCharge) * 10) / 10
+            : 0;
+
+        oMetrics.therapistMetrics = {
+          inChargeTR,
+          inChargeTB,
+          totalInCharge,
+          onTreatmentRF,
+          onTreatmentBM,
+          totalOnTreatment,
+          availableTR,
+          availableTB,
+          totalAvailable,
+          utilizationPercent,
+          cumulativeProductivity,
+        };
+
+        globalOnTreatmentRF += onTreatmentRF;
+        globalOnTreatmentBM += onTreatmentBM;
       }
 
       // Calculate progress percentages
@@ -481,6 +808,60 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         }))
         .sort((a, b) => b.count - a.count);
 
+      // Global HR & Room & Therapist Summaries
+      const targetOutletMetrics =
+        selectedOutletCode === 'ALL' ? null : outletMap.get(selectedOutletCode);
+
+      const summaryHRMetrics: OutletHRMetrics = targetOutletMetrics?.hrMetrics || {
+        totalActiveStaff: globalTotalActiveStaff,
+        activeTR: globalActiveTR,
+        activeTB: globalActiveTB,
+        departments: Array.from(globalDeptMap.entries())
+          .map(([dept, count]) => ({
+            departemen: dept,
+            label: DEPT_LABELS[dept] || dept,
+            count,
+          }))
+          .sort((a, b) => b.count - a.count),
+      };
+
+      const summaryRoomMetrics: OutletRoomMetrics = targetOutletMetrics?.roomMetrics || {
+        totalRooms: globalTotalRooms,
+        roomsBM: globalRoomsBM,
+        roomsRF: globalRoomsRF,
+        usedRooms: globalUsedRooms,
+        usedBM: globalUsedBM,
+        usedRF: globalUsedRF,
+        availableRooms: Math.max(0, globalTotalRooms - globalUsedRooms),
+        availableBM: Math.max(0, globalRoomsBM - globalUsedBM),
+        availableRF: Math.max(0, globalRoomsRF - globalUsedRF),
+        occupancyPercent: globalTotalRooms > 0 ? Math.round((globalUsedRooms / globalTotalRooms) * 100) : 0,
+        cumulativeTurnover:
+          globalTotalRooms > 0
+            ? Math.round(((globalCompletedTransactions + globalActiveCheckIns) / globalTotalRooms) * 10) / 10
+            : 0,
+      };
+
+      const globalTotalInCharge = globalActiveTR + globalActiveTB;
+      const globalTotalOnTreatment = globalOnTreatmentRF + globalOnTreatmentBM;
+      const summaryTherapistMetrics: OutletTherapistMetrics = targetOutletMetrics?.therapistMetrics || {
+        inChargeTR: globalActiveTR,
+        inChargeTB: globalActiveTB,
+        totalInCharge: globalTotalInCharge,
+        onTreatmentRF: globalOnTreatmentRF,
+        onTreatmentBM: globalOnTreatmentBM,
+        totalOnTreatment: globalTotalOnTreatment,
+        availableTR: Math.max(0, globalActiveTR - globalOnTreatmentRF),
+        availableTB: Math.max(0, globalActiveTB - globalOnTreatmentBM),
+        totalAvailable: Math.max(0, globalTotalInCharge - globalTotalOnTreatment),
+        utilizationPercent:
+          globalTotalInCharge > 0 ? Math.round((globalTotalOnTreatment / globalTotalInCharge) * 100) : 0,
+        cumulativeProductivity:
+          globalTotalInCharge > 0
+            ? Math.round(((globalCompletedTransactions + globalActiveCheckIns) / globalTotalInCharge) * 10) / 10
+            : 0,
+      };
+
       const summary: GlobalGardenSummary = {
         totalSales: globalTotalSales,
         cashOnHand: globalCashOnHand,
@@ -493,6 +874,9 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
         totalRejections: globalTotalRejections,
         categoryMix: globalCategoryMix,
         topItems: globalTopItems,
+        hrMetrics: summaryHRMetrics,
+        roomMetrics: summaryRoomMetrics,
+        therapistMetrics: summaryTherapistMetrics,
       };
 
       setData({
@@ -518,6 +902,7 @@ export function useDashboardData(selectedOutletCode: string = 'ALL') {
       isFetchingRef.current = false;
     }
   }, [selectedOutletCode, activeDateStr]);
+
 
   // Initial Fetch & Active Window Timer
   useEffect(() => {

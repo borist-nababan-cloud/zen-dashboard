@@ -33,18 +33,34 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
         - Unified `useDashboardData.ts` to query `ot_pos_trans_reject` via strict indexed `.eq('tanggal', localDateStr)`.
         - Enforced active outlet membership (`if (!outletMap.has(entity.kode_outlet)) continue;`) and strict operational date guards across master, detail, payment, and rejection aggregation loops.
 - **Live Sync & Telemetry:** 30-second auto-refresh countdown with visibility-pause detection and manual trigger.
+- **Human Resources & On-Duty Staff Analytics (`ot_hrd_absen_harian` + `ot_hrd_karyawan_info`):**
+  - Evaluates biometric fingerprint scans with standard shift completion logic: if `(fp_out - fp_in) >= 2 hours`, employee is marked off-duty and excluded from active count.
+  - Dynamically resolves department codes from employee master records and tracks specialized rosters:
+    - `"TR"` : Therapist Foot / Reflexology roster (`activeTR`)
+    - `"TB"` : Therapist Body Massage roster (`activeTB`)
+    - Full distribution across supporting departments (`FO`, `KASIR`, `HK`, `OB`, `SC`, `SPV`).
+- **Room & Therapist Capacity & Velocity Engine (`RoomTherapistAnalysis`):**
+  - **Room Analytics (`ot_master_room`):** Real-time mapping against active `STARTED` transactions, calculating registered, in-use, and available rooms split into Body Massage (`BM`) and Foot/Reflexology (`RF`), with live Occupancy % and daily turnover velocity.
+  - **Therapist Analytics:** Compares in-charge therapists (`TR` & `TB`) with therapists currently serving guests in `ot_pos_trans_master` (`TR = RF`, `TB = BM`), providing instant live utilization %, idle therapist availability, and daily productivity ratios.
+  - **Branch Grid Live Capacity:** Individual branch cards in `OutletPanoramaGrid` display live staff and room availability indicators.
+- **Complete Treatments & Products Catalog:**
+  - Removed top-6 limit; displays 100% of distinct services and retail items rendered today, strictly sorted by QTY descending within a responsive scrollable grid.
+- **Operational Date Lock:** Locked header date picker (`readOnly` and `disabled`) to prevent client-side calendar manipulation, permanently tethered to authoritative Indonesian WIB operational shifts.
+- **Prominent Outlet Hero Banner:** High-contrast `[ KODE_OUTLET ]` bamboo green badge, large serif typography, and instant one-click `"← Back to All Outlets"` navigation.
 
 ## 4. Visual Design & Zen Brand Identity
 - **Branding Assets:** Integrated company logo (`Logo150x150.png`, `Logo150x150.jpg`) and application favicon (`favicon.ico`) directly from `desktop\ZenSystem`.
 - **Palette Tokens:** `zen-matcha` (#889D35), `zen-sand` (#D2C0A7), `zen-paper` (#F8F5F1), `zen-charcoal` (#3C3C32), `zen-moss` (#6E8027).
 - **Core Visual Modules:**
-  1. **Header:** Live WIB clock, operational date picker with "Today" reset action, active branch filter dropdown, auto-refresh countdown, brand logo, and streamlined subtitle ("Executive Multi-Outlet Real-time").
-  2. **The Zen Garden Summary:** Primary Hero KPIs (Gross Sales, Cash on Hand, Active Guests In-Service, Completed Treatments, 5-card Services & Products Breakdown).
-  3. **Branch Panorama Grid:** Active outlet cards featuring daily target revenue progress bars, 4-pill treatment service mix (`BJ`, `BA`, `BP`, `BG`), and walk-in rejection counts.
-  4. **Finance & Promo Matrix:** Consolidated tender breakdown (Cash, Card/EDC, QRIS, Voucher) and promotion / discount absorption.
-  5. **Rejection & Bottleneck Analysis:** Capacity bottleneck diagnostics on walk-in cancellations.
+  1. **Header:** Live WIB clock, locked operational date indicator, active branch filter dropdown, auto-refresh countdown, brand logo, and streamlined subtitle ("Executive Multi-Outlet Real-time").
+  2. **The Zen Garden Summary:** Primary Hero KPIs (Gross Sales, Cash on Hand, GC Payment, Active Guests In-Service, Completed Treatments, 5-card Services & Products Breakdown, Full Catalog QTY Ranking).
+  3. **Room & Therapist Analytics:** Real-time staffing, capacity meters, room availability split (BM vs RF), and therapist utilization (TR vs TB).
+  4. **Branch Panorama Grid:** Active outlet cards featuring daily target revenue progress bars, live staff & room indicators, 4-pill treatment service mix (`BJ`, `BA`, `BP`, `BG`), and walk-in rejection counts.
+  5. **Finance & Promo Matrix:** Consolidated tender breakdown (Cash, Card/EDC, QRIS, Voucher) and promotion / discount absorption.
+  6. **Rejection & Bottleneck Analysis:** Capacity bottleneck diagnostics on walk-in cancellations.
 
 ## 5. Verification & Build
 - Production bundle compiled with zero type or build errors (`dist/index.html`, `dist/assets/`).
 - Validated against live production Supabase database (`ihdlwogvjfgawgsalgng.supabase.co`).
 - Pushed live to GitHub repository `borist-nababan-cloud/zen-dashboard:main`.
+

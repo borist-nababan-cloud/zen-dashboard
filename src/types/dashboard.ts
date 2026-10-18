@@ -83,6 +83,84 @@ export interface CategoryMix {
   total: number;
 }
 
+export interface MasterRoom {
+  uid?: string;
+  kode_outlet: string;
+  room_id: string;
+  active: boolean;
+  jenis_jasa?: string;
+  room_gender?: string;
+  available?: boolean;
+  keterangan?: string;
+  fasilitas?: string;
+}
+
+export interface HrdAbsenHarian {
+  id?: string;
+  local_autonum?: number;
+  kode_outlet: string;
+  kodekaryawan: string;
+  id_karyawan?: string;
+  nama?: string;
+  tanggal: string;
+  waktu?: string;
+  status?: string;
+  notes?: string;
+  fp_in?: string;
+  fp_out?: string;
+}
+
+export interface HrdKaryawanInfo {
+  id?: string;
+  kode_outlet?: string;
+  kodekaryawan: string;
+  idkaryawan?: string;
+  namakaryawan?: string;
+  departemen?: string;
+  active?: string;
+}
+
+export interface DepartmentStaffCount {
+  departemen: string;
+  label: string;
+  count: number;
+}
+
+export interface OutletHRMetrics {
+  totalActiveStaff: number;
+  activeTR: number; // Therapist Reflexology (Foot)
+  activeTB: number; // Therapist Body
+  departments: DepartmentStaffCount[];
+}
+
+export interface OutletRoomMetrics {
+  totalRooms: number;
+  roomsBM: number;
+  roomsRF: number;
+  usedRooms: number;
+  usedBM: number;
+  usedRF: number;
+  availableRooms: number;
+  availableBM: number;
+  availableRF: number;
+  occupancyPercent: number;
+  cumulativeTurnover: number;
+}
+
+export interface OutletTherapistMetrics {
+  inChargeTR: number;
+  inChargeTB: number;
+  totalInCharge: number;
+  onTreatmentRF: number;
+  onTreatmentBM: number;
+  totalOnTreatment: number;
+  availableTR: number;
+  availableTB: number;
+  totalAvailable: number;
+  utilizationPercent: number;
+  cumulativeProductivity: number;
+}
+
 export interface ItemRankItem {
   name: string;
   count: number;
@@ -102,6 +180,9 @@ export interface OutletCardMetrics {
   topItems: ItemRankItem[];
   targetSales?: number;
   progressPercent: number;
+  hrMetrics?: OutletHRMetrics;
+  roomMetrics?: OutletRoomMetrics;
+  therapistMetrics?: OutletTherapistMetrics;
 }
 
 export interface PaymentMethodItem {
@@ -134,6 +215,9 @@ export interface GlobalGardenSummary {
   totalRejections: number;
   categoryMix: CategoryMix;
   topItems: ItemRankItem[];
+  hrMetrics?: OutletHRMetrics;
+  roomMetrics?: OutletRoomMetrics;
+  therapistMetrics?: OutletTherapistMetrics;
 }
 
 export interface DashboardDataState {
@@ -147,4 +231,5 @@ export interface DashboardDataState {
   rejectionReasons: RejectionReasonItem[];
   allActiveOutlets: MasterOutlet[];
 }
+
 

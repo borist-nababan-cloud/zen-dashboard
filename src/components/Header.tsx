@@ -93,29 +93,18 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Controls: Date Picker, Branch Filter, Live Clock, Refresh */}
           <div className="flex flex-wrap items-center justify-end gap-2 w-full md:w-auto">
             
-            {/* Operational Business Date Picker */}
-            <div className="relative flex items-center gap-1.5">
-              <div className="relative flex items-center">
+            {/* Operational Business Date (Locked to System Shift) */}
+            <div className="relative flex items-center">
+              <div className="relative flex items-center" title="System Operational Date (Auto-locked to WIB Business Shift)">
                 <Calendar className="absolute left-2.5 w-3.5 h-3.5 text-zen-moss pointer-events-none" />
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => onSelectDate(e.target.value)}
-                  title="Operational Business Date (Defaults to yesterday's closing shift between 00:00 - 08:00)"
-                  className="pl-8 pr-2.5 py-2 text-xs font-semibold rounded-xl bg-white border border-zen-sand/50 text-zen-charcoal shadow-sm hover:border-zen-matcha focus:outline-none focus:ring-2 focus:ring-zen-matcha/40 transition-all cursor-pointer"
+                  readOnly
+                  disabled
+                  className="pl-8 pr-2.5 py-2 text-xs font-semibold rounded-xl bg-zen-paper/80 border border-zen-sand/60 text-zen-charcoal shadow-sm cursor-default select-none opacity-90"
                 />
               </div>
-
-              {isCustomDate && (
-                <button
-                  onClick={onResetDate}
-                  title="Reset to live operational shift date"
-                  className="flex items-center space-x-1 px-2.5 py-2 bg-amber-50 text-amber-800 border border-amber-200/80 rounded-xl text-xs font-semibold hover:bg-amber-100 active:scale-95 transition-all shadow-sm"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
-                  <span className="hidden sm:inline">Today</span>
-                </button>
-              )}
             </div>
 
             {/* Outlet Selector */}
