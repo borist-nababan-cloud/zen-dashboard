@@ -100,12 +100,17 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
   - **24/7 TV Wall Display Resilience:** Configured `FLAG_KEEP_SCREEN_ON` in `MainActivity.java` to prevent TV screen timeouts or sleep modes during continuous operational monitoring.
   - **Gradle & JDK 17 Hardening:** Resolved Gradle AGP Kotlin standard library duplication via dependency constraints (`kotlin-stdlib-jdk7/8`) and configured `JavaVersion.VERSION_17` in `build.gradle`.
   - **Artifact Verified:** Successfully compiled `app-debug.apk` (4.84 MB) at `android/app/build/outputs/apk/debug/app-debug.apk` and distributed copy at root `zen-dashboard-android-tv.apk`.
+  - **TCL Smart TV Deployment Guide:**
+    - TCL built-in media players filter out non-media files on USB flash drives.
+    - Installation can be achieved via: (1) Built-in TCL "Safety Guard" / "TV Guard" $\to$ App Manager $\to$ Install from USB; (2) Wireless ADB direct install from PC (`adb connect <TV_IP>:5555` followed by `adb install -r zen-dashboard-android-tv.apk`); (3) Google Play Store TV File Managers (FX File Explorer / AnExplorer); or (4) Send Files to TV over local Wi-Fi.
 - **Coolify Dockerfile & Alpine Rollup Linux-Musl Hardening (Oct 28, 2026):**
   - **RCA:** Coolify cloud deployment failed on `RUN npm run build` with `Cannot find module @rollup/rollup-linux-x64-musl` due to npm's cross-platform optional dependencies omission when building from a Windows-generated lockfile inside Alpine Linux.
   - **Resolution:**
     - Explicitly added `@rollup/rollup-linux-x64-musl` and `@rollup/rollup-linux-x64-gnu` into `optionalDependencies` in `package.json` and updated `package-lock.json`.
     - Upgraded builder to `node:22-alpine` in `Dockerfile`.
     - Added deterministic fallback: `RUN npm install && npm install --no-save @rollup/rollup-linux-x64-musl` to guarantee the native Linux musl binary is always present in `/app/node_modules/` before `vite build` triggers.
+    - Committed (`8b371c9`) and pushed live to `https://github.com/borist-nababan-cloud/zen-dashboard.git` on branch `main`.
+
 
 
 
