@@ -1,0 +1,14 @@
+{
+  "appId": "id.zenfamilyspa.dashboard",
+  "appName": "Zen Executive Dashboard",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": true
+  }
+}

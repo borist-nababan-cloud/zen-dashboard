@@ -90,4 +90,15 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
     - Smart dismissal: Persists 24-hour snooze preference in `localStorage` (`zen_dashboard_pwa_dismissed_until`).
   - **Nginx Web Server Hardening (`nginx.conf`):** Added zero-stale cache directives for `sw.js`, `registerSW.js`, and `manifest.webmanifest` (`no-cache, no-store, must-revalidate`) and enabled `application/manifest+json` compression.
   - **Build Verification:** 100% verified with `vite build` generating 27 precached entries (~1.1 MB), 0 linter or build errors.
+- **Android TV Standalone APK Packaging via Capacitor (Oct 28, 2026):**
+  - **Native Platform Integration:** Initialized Capacitor (`@capacitor/core`, `@capacitor/cli`, `@capacitor/android`) with `capacitor.config.json` configured for `id.zenfamilyspa.dashboard`.
+  - **Android TV (Leanback) Compliance:**
+    - Configured `AndroidManifest.xml` with `<category android:name="android.intent.category.LEANBACK_LAUNCHER" />` ensuring the app tile appears natively on Android TV / Google TV home screens alongside standard mobile launchers.
+    - Declared `<uses-feature android:name="android.hardware.touchscreen" android:required="false" />` and `android.software.leanback: false` ensuring universal compatibility across both TV boxes and Android tablets.
+    - Generated official 16:9 landscape TV banner (`android:banner="@drawable/tv_banner"`, 320x180 px) with Zen Brand identity and crisp typography.
+    - Locked activity orientation to `sensorLandscape` for wall displays and TV kiosks.
+  - **24/7 TV Wall Display Resilience:** Configured `FLAG_KEEP_SCREEN_ON` in `MainActivity.java` to prevent TV screen timeouts or sleep modes during continuous operational monitoring.
+  - **Gradle & JDK 17 Hardening:** Resolved Gradle AGP Kotlin standard library duplication via dependency constraints (`kotlin-stdlib-jdk7/8`) and configured `JavaVersion.VERSION_17` in `build.gradle`.
+  - **Artifact Verified:** Successfully compiled `app-debug.apk` (4.84 MB) at `android/app/build/outputs/apk/debug/app-debug.apk` and distributed copy at root `zen-dashboard-android-tv.apk`.
+
 
