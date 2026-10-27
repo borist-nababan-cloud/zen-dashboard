@@ -1,4 +1,4 @@
-# Zen Panorama Dashboard Project Summary (Updated Oct 18, 2026)
+# Zen Panorama Dashboard Project Summary (Updated Oct 26, 2026)
 
 ## 1. Overview
 The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\dashboard`) provides a real-time, high-level operational overview across all active Zen Family Spa outlets. The application consumes data synchronized to the central Supabase PostgreSQL cloud directly by the Delphi `SyncAgent` daemon.
@@ -66,5 +66,28 @@ The **Zen Family Spa and Reflexology** Executive Panorama Dashboard (`frontend\d
 - **Database Hardening & Local/Staging Parity (Oct 20, 2026):**
   - Confirmed zero disruption to dashboard data feeds after enabling RLS on `pos_trans_point_member` and setting views to `security_invoker`.
   - Local (`127.0.0.1:54322`) and Staging (`okchlapizmhoueeeldrh`) environments now replicate 100% of live production records via `sync_prod_to_env.ps1`, allowing full offline executive dashboard preview with realistic transaction volumes.
-
+- **Staging Transaction & Attendance Sync Parity (Oct 22, 2026):**
+  - Staging Cloud environment now matches live Production POS and HRD data 100% via `restore_prod_tables_to_staging.ps1`, enabling realistic dashboard validation without impacting authentication or user state.
+- **Cross-App Ecosystem Harmonization (Oct 23, 2026):**
+  - The executive dashboard's 4-category service mix (`BJ` Foot & Body, `BA` Additional) and live therapist roster (`TR` Reflexology, `TB` Body) directly harmonize with Zen Internal Super-App's therapist commission calculations (`master_komisi_rate`) and biometric attendance modules, ensuring multi-outlet managers and staff review identical numbers.
+- **Warehouse & Finance Decoupling Stability (Oct 24, 2026):**
+  - Schema evolutions and RLS policy activations on warehouse tables (`purchase_orders`, `master_financial_accounts`, `finance_transaction_categories`, `stock_opname_headers`) operate in complete isolation from the executive dashboard's real-time queries.
+  - Live WIB operational date filtering, therapist capacity velocity, and multi-outlet revenue progress tracking maintain 100% stability.
+- **Master Outlet Metadata & Zen Brand Design Alignment (Oct 26, 2026):**
+  - **Enhanced Outlet Metadata:** Coordinate data (`location` JSON), contact numbers, and operational flags (`can_sto`) maintained via WHMS Role 6 "Info Outlet" module are available to enrich executive branch overview cards with interactive Google Maps links.
+  - **Design System Harmonization:** The Zen Natural Dark Mode tokens (`#191914` River Stone, `#22221B` Dark Stone Surface, `#9BB33B` Luminous Matcha) established in WHMS provide a proven design system reference for future dark mode implementation in the Panorama Dashboard.
+  - **Database Parity & View Isolation:** The 7 new STO reporting views and UUID audit field triggers operate cleanly without interfering with dashboard real-time aggregation queries on `ot_pos_trans_master`, `detail`, `payment`, and `reject`.
+- **Production Parity & Warehouse Live Independence (Oct 27, 2026):**
+  - WHMS live deployment on Coolify (`https://latihan-whmapp.zenfamilyspa.id` and `https://whmapp.zenfamilyspa.id/`) runs alongside the dashboard with complete microservice decoupling.
+  - Seeding of all 20 outlets in Production (`ihdlwogvjfgawgsalgng`) guarantees that Dashboard outlet queries on `master_outlet` reflect authoritative branch details.
+- **Progressive Web App (PWA) Transformation & Native Install Shortcut (Oct 27, 2026):**
+  - **Vite PWA Integration (`vite-plugin-pwa`):** Upgraded build configuration to generate standalone Web App Manifest and Workbox Service Worker (`sw.js`, `registerSW.js`) with cache-first strategy for Google Fonts (`Playfair Display`, `Plus Jakarta Sans`) and local application shell assets.
+  - **Flexible Multi-Device Orientation:** Manifest configured with `orientation: 'any'` and `display: 'standalone'` supporting seamless responsive usage across executive smartphones (portrait) as well as executive tablets, laptops, and Head Office TV Wall displays (landscape).
+  - **High-Resolution Icon Suite:** Integrated full icon set in `public/` (`pwa-192x192.png`, `pwa-512x512.png`, `pwa-maskable-512x512.png`, `apple-touch-icon.png`, `masked-icon.svg`, and `logo.png`) with Zen brand `#889D35` theme color.
+  - **PWA Installation Hook & Banner (`usePWAInstall.ts`, `PWAInstallBanner.tsx`):**
+    - Dual platform support: native one-click install for Android, Windows, and Chromium Edge/Chrome (`beforeinstallprompt`), plus interactive 3-step modal guide for iOS Safari ("Add to Home Screen").
+    - Collision-free positioning: Docked at bottom-left (`fixed bottom-5 left-4 sm:left-6 sm:max-w-md`) to ensure zero visual overlap with the TV Auto-Scroll controller (`bottom-5 right-5`).
+    - Smart dismissal: Persists 24-hour snooze preference in `localStorage` (`zen_dashboard_pwa_dismissed_until`).
+  - **Nginx Web Server Hardening (`nginx.conf`):** Added zero-stale cache directives for `sw.js`, `registerSW.js`, and `manifest.webmanifest` (`no-cache, no-store, must-revalidate`) and enabled `application/manifest+json` compression.
+  - **Build Verification:** 100% verified with `vite build` generating 27 precached entries (~1.1 MB), 0 linter or build errors.
 

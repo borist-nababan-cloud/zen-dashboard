@@ -7,6 +7,7 @@ import { RoomTherapistAnalysis } from './components/RoomTherapistAnalysis';
 import { OutletPanoramaGrid } from './components/OutletPanoramaGrid';
 import { FinancePromoAnalysis } from './components/FinancePromoAnalysis';
 import { RejectionAnalysis } from './components/RejectionAnalysis';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { AlertCircle, RefreshCw, Sparkles, Building2, ShieldCheck, Tv, Play, Pause } from 'lucide-react';
 
 export function App() {
@@ -176,6 +177,9 @@ export function App() {
           </button>
         </div>
       )}
+
+      {/* Floating PWA Install & Shortcut Banner (Bottom-Left) */}
+      <PWAInstallBanner />
 
       {/* Zen Footer */}
       <footer className="bg-white border-t border-zen-sand/40 py-6 mt-12 text-center text-xs text-zen-muted">
