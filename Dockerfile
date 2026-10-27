@@ -1,17 +1,19 @@
-# ==========================================
-# Multi-Stage Production Dockerfile for Zen Dashboard
-# ==========================================
+# ==============================================================================
+# Multi-Stage Production Dockerfile for Zen Dashboard (PWA & Kiosk Ready)
+# ==============================================================================
 
+# ------------------------------------------------------------------------------
 # Stage 1: Build Application
-FROM node:20-alpine AS builder
+# ------------------------------------------------------------------------------
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
 # Install dependencies (cached if package files unchanged)
-COPY package*.json ./
-RUN npm ci --no-audit --prefer-offline || npm install
+COPY package.json package-lock.json* ./
+RUN npm install && npm install --no-save @rollup/rollup-linux-x64-musl
 
-# Build Arguments for Supabase Configuration
+# Build Arguments for Supabase Configuration (injected by Coolify)
 ARG VITE_SUPABASE_URL=https://ihdlwogvjfgawgsalgng.supabase.co
 ARG VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_KobV2o95Ymfem77b4zVBJg_E_onldRD
 
@@ -25,7 +27,9 @@ COPY . .
 # Build production bundle to /app/dist
 RUN npm run build
 
+# ------------------------------------------------------------------------------
 # Stage 2: Production Nginx Server
+# ------------------------------------------------------------------------------
 FROM nginx:alpine
 
 # Install curl and wget to ensure all healthcheck commands succeed reliably
@@ -34,7 +38,7 @@ RUN apk add --no-cache curl wget
 # Remove default Nginx HTML
 RUN rm -rf /usr/share/nginx/html/*
 
-# Copy custom Nginx configuration with SPA routing & compression
+# Copy custom Nginx configuration with SPA routing, PWA headers & compression
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy compiled assets from builder
